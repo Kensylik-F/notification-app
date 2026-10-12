@@ -18,6 +18,20 @@
 которые в контракте уведомлений те же: конверт страницы, пять OData-опций,
 RFC 9457 для ошибок, конверт долгой операции.
 
+## Шаблоны
+
+`contract/templates/` — копия каталога шаблонов сервиса на том же коммите:
+`services/notification-service/src/main/resources/templates/`. Из него
+`npm run generate` собирает `src/notifications-kit/core/generated/templates.ts`:
+ключи, каналы, языки и переменные шаблонов. При переходе на новый коммит
+каталог заменяется вместе с OpenAPI.
+
+## Прочее
+
+Права модераторских экранов взяты из `@PreAuthorize` контроллеров
+(`web/NotificationController`, `DeliveryAdminController`,
+`AnnouncementAdminController`) на том же коммите.
+
 Помимо контракта из исходников сервиса на том же коммите взяты три вещи,
 которых в OpenAPI нет: список кодов ошибок (`core/errors.ts`), имена сущностей
 для `filter-metadata` и лимиты страниц (`core/odata.ts`). Они помечены в коде.

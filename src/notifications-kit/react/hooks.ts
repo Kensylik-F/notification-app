@@ -80,8 +80,21 @@ export function useInboxList(options: InboxListOptions = {}) {
     queryFn: ({ pageParam, signal }) =>
       api.inbox.list({ filter, top: pageSize, skip: pageParam }, { signal }),
     initialPageParam: 0,
-    getNextPageParam: (lastPage: Page<InboxEntry>) =>
-      lastPage.hasMore ? lastPage.offset + pageSize : undefined,
+    getNextPageParam: (
+      lastPage: Page<InboxEntry>,
+      allPages: Page<InboxEntry>[]
+    ) => {
+      if (!lastPage.hasMore || lastPage.items.length === 0) return undefined;
+      // A server that ignores $skip answers every page with the same rows;
+      // asking again would only repeat them.
+      const earlier = new Set(
+        allPages.slice(0, -1).flatMap(page => page.items.map(e => e.id))
+      );
+      if (lastPage.items.every(entry => earlier.has(entry.id))) {
+        return undefined;
+      }
+      return lastPage.offset + pageSize;
+    },
     enabled,
     retry,
     retryDelay,
@@ -114,26 +127,54 @@ export function useInboxItem(id: string | undefined) {
 export function useInboxSubjects(
   entries: readonly InboxEntry[]
 ): ReadonlyMap<string, InboxEntry> {
-  const { api, enabled, subjects } = useNotificationsContext();
-  const active = enabled && subjects === 'fetch';
+  return useInboxDetails(entries).items;
+}
 
+export interface InboxDetails {
+  /** The item fetched by id, keyed by the id that was asked for. */
+  items: ReadonlyMap<string, InboxEntry>;
+  /** Failed by-id requests, by the same key. */
+  errors: ReadonlyMap<string, unknown>;
+}
+
+/**
+ * `useInboxSubjects` with the failures too. `alwaysFetch` lists ids that are
+ * fetched even with `subjects: 'none'` - an expanded row needs its body.
+ */
+export function useInboxDetails(
+  entries: readonly InboxEntry[],
+  alwaysFetch: readonly string[] = []
+): InboxDetails {
+  const { api, enabled, subjects } = useNotificationsContext();
+  const fetchAll = enabled && subjects === 'fetch';
+
+  const ids = entries.map(entry => entry.id);
+  const idsKey = ids.join('|');
+  const forced = new Set(alwaysFetch);
+  // Keyed by the id that was asked for, not the one in the answer: a row is
+  // matched to its own request even if a server answers with another item.
   const combine = useCallback(
-    (results: Array<{ data: InboxEntry | undefined }>) => {
-      const map = new Map<string, InboxEntry>();
-      results.forEach(result => {
-        if (result.data) map.set(result.data.id, result.data);
+    (results: Array<{ data: InboxEntry | undefined; error: unknown }>) => {
+      const keys = idsKey.split('|');
+      const items = new Map<string, InboxEntry>();
+      const errors = new Map<string, unknown>();
+      results.forEach((result, index) => {
+        const id = keys[index];
+        if (!id) return;
+        if (result.data) items.set(id, result.data);
+        else if (result.error) errors.set(id, result.error);
       });
-      return map;
+      return { items, errors };
     },
-    []
+    [idsKey]
   );
 
   return useQueries({
-    queries: entries.map(entry => ({
-      queryKey: notificationKeys.inboxItem(entry.id),
+    queries: ids.map(id => ({
+      queryKey: notificationKeys.inboxItem(id),
       queryFn: ({ signal }: { signal: AbortSignal }) =>
-        api.inbox.get(entry.id, { signal }),
-      enabled: active,
+        api.inbox.get(id, { signal }),
+      enabled: fetchAll || (enabled && forced.has(id)),
       staleTime: Infinity,
       retry: false,
     })),

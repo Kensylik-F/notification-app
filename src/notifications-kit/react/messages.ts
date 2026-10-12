@@ -2,6 +2,8 @@
  * Every string the kit shows. A host overrides any subset through the
  * provider's `messages`, or replaces the lookup entirely with `translate`.
  */
+import { ADMIN_MESSAGES_EN, ADMIN_MESSAGES_RU } from './admin-messages';
+
 export const MESSAGES_RU = {
   'bell.label': 'Уведомления',
   'bell.labelWithCount': 'Уведомления, непрочитанных: {count}',
@@ -20,6 +22,10 @@ export const MESSAGES_RU = {
   'inbox.untitled': 'Уведомление',
   'inbox.total': 'Всего: {count}',
   'item.dismiss': 'Скрыть',
+  'item.expand': 'Показать текст',
+  'item.collapse': 'Свернуть',
+  'item.openSeparately': 'Открыть отдельно',
+  'item.loading': 'Загрузка…',
   'item.markRead': 'Отметить прочитанным',
   'item.notFound': 'Уведомление не найдено',
   'item.notFoundHint':
@@ -35,6 +41,7 @@ export const MESSAGES_RU = {
   'time.justNow': 'только что',
   'error.generic': 'Что-то пошло не так. Попробуйте ещё раз.',
   'error.traceId': 'Код обращения: {traceId}',
+  ...ADMIN_MESSAGES_RU,
 } as const;
 
 export type MessageKey = keyof typeof MESSAGES_RU;
@@ -58,6 +65,10 @@ export const MESSAGES_EN: Messages = {
   'inbox.untitled': 'Notification',
   'inbox.total': 'Total: {count}',
   'item.dismiss': 'Dismiss',
+  'item.expand': 'Show text',
+  'item.collapse': 'Collapse',
+  'item.openSeparately': 'Open separately',
+  'item.loading': 'Loading…',
   'item.markRead': 'Mark as read',
   'item.notFound': 'Notification not found',
   'item.notFoundHint':
@@ -73,6 +84,7 @@ export const MESSAGES_EN: Messages = {
   'time.justNow': 'just now',
   'error.generic': 'Something went wrong. Please try again.',
   'error.traceId': 'Reference: {traceId}',
+  ...ADMIN_MESSAGES_EN,
 };
 
 export type MessageVars = Record<string, string | number>;

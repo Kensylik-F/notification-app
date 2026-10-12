@@ -21,4 +21,21 @@ export const notificationKeys = {
     [...notificationKeys.announcements(), 'item', id] as const,
   outstandingCount: () =>
     [...notificationKeys.announcements(), 'outstanding-count'] as const,
+
+  admin: () => [...notificationKeys.all, 'admin'] as const,
+  deliveries: () => [...notificationKeys.admin(), 'deliveries'] as const,
+  deliveryList: (query: PageQuery) =>
+    [...notificationKeys.deliveries(), 'list', query] as const,
+  delivery: (id: string) =>
+    [...notificationKeys.deliveries(), 'item', id] as const,
+  deliveryHistory: (id: string) =>
+    [...notificationKeys.deliveries(), 'history', id] as const,
+  deliveryContent: (id: string) =>
+    [...notificationKeys.deliveries(), 'content', id] as const,
+  request: (id: string) =>
+    [...notificationKeys.admin(), 'request', id] as const,
+  emailRun: (announcementId: string) =>
+    [...notificationKeys.admin(), 'email-run', announcementId] as const,
+  /** Announcements published from this browser session. */
+  published: () => [...notificationKeys.admin(), 'published'] as const,
 };

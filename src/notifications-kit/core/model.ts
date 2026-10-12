@@ -120,10 +120,13 @@ function toPage<W, T>(
     .filter((entry): entry is T => entry !== null);
   const offset = page.offset ?? 0;
   const total = page.totalElements ?? null;
+  // A page shorter than asked for is the last one, whatever the total says.
+  const shortPage = requestedTop !== undefined && content.length < requestedTop;
   const hasMore =
-    total !== null
+    !shortPage &&
+    (total !== null
       ? offset + content.length < total
-      : requestedTop !== undefined && content.length >= requestedTop;
+      : requestedTop !== undefined);
   return { items, offset, total, hasMore };
 }
 

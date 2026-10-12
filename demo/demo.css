@@ -31,6 +31,12 @@
   --nk-color-on-badge: #2a0d04;
   --nk-color-scrim: rgba(0, 0, 0, 0.6);
   --nk-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --nk-color-danger: #ec8b74;
+  --nk-color-danger-soft: rgba(236, 139, 116, 0.14);
+  --nk-color-success: #6cc48a;
+  --nk-color-warning-soft: rgba(224, 178, 80, 0.14);
+  --nk-color-warning-border: rgba(224, 178, 80, 0.4);
+  --nk-color-surface-sunken: rgba(255, 255, 255, 0.03);
 }
 
 :root {
@@ -92,8 +98,64 @@ body {
   cursor: pointer;
 }
 
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+}
+
+.nav {
+  flex: none;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+
+.navItem {
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.navItem[aria-current='page'] {
+  background: rgba(42, 117, 111, 0.13);
+  color: #1d5d58;
+  font-weight: 600;
+}
+
+:root[data-theme='dark'] .navItem[aria-current='page'] {
+  background: rgba(91, 179, 171, 0.17);
+  color: #86cfc8;
+}
+
+@media (max-width: 720px) {
+  .body {
+    flex-direction: column;
+  }
+
+  .nav {
+    width: auto;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+}
+
 .main {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow: auto;
   padding: 16px 20px;

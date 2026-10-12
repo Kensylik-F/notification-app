@@ -86,5 +86,16 @@ export const asSeen = (entry: InboxEntry, at: string): InboxEntry =>
 export const countsAsUnread = (entry: InboxEntry | undefined): boolean =>
   entry !== undefined && !entry.read && !entry.dismissed;
 
-export const flatten = (data: InboxListData | undefined): InboxEntry[] =>
-  data?.pages.flatMap(page => page.items) ?? [];
+/** All rows in order, each id once - the first occurrence wins. */
+export function flatten(data: InboxListData | undefined): InboxEntry[] {
+  const seen = new Set<string>();
+  const out: InboxEntry[] = [];
+  for (const page of data?.pages ?? []) {
+    for (const entry of page.items) {
+      if (seen.has(entry.id)) continue;
+      seen.add(entry.id);
+      out.push(entry);
+    }
+  }
+  return out;
+}

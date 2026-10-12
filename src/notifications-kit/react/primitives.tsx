@@ -11,6 +11,11 @@ const ICON_PATHS = {
   close: 'M6 6l12 12 M18 6L6 18',
   checkAll: 'M3 12.5l4 4 8-9 M12 16.5l1 1 8-9',
   info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 11v5.5 M12 7.6h.01',
+  chevron: 'M6 9.5l6 6 6-6',
+  send: 'M20.5 3.5L10 14 M20.5 3.5l-6.5 17-4-7.5-7.5-4 18-5.5z',
+  refresh:
+    'M20 11a8 8 0 0 0-14.5-4L4 9 M4 4v5h5 M4 13a8 8 0 0 0 14.5 4L20 15 M20 20v-5h-5',
+  plus: 'M12 5v14 M5 12h14',
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;

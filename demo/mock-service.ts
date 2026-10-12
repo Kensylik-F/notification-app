@@ -7,6 +7,7 @@ import type {
   NotificationsTransport,
   TransportResponse,
 } from '../src/notifications-kit';
+import { createAdminMock } from './mock-admin';
 
 interface StoredItem {
   id: string;
@@ -170,6 +171,25 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     },
   ];
 
+  const admin = createAdminMock({
+    publish: a =>
+      announcements.push({
+        ...a,
+        categoryClass: 'PLATFORM',
+        locale: 'ru',
+        dismissed: false,
+      }),
+    correct: (id, subject, bodyText) => {
+      const found = announcements.find(a => a.id === id);
+      if (found) Object.assign(found, { subject, bodyText });
+    },
+  });
+
+  const visible = (a: StoredAnnouncement) => {
+    const now = Date.now();
+    return Date.parse(a.visibleFrom) <= now && now < Date.parse(a.visibleUntil);
+  };
+
   const listView = (item: StoredItem) => ({
     id: item.id,
     templateKey: item.templateKey,
@@ -283,12 +303,13 @@ export function createMockService(options: { latencyMs?: number } = {}) {
 
     if (route === 'GET /api/v1/announcements/outstanding-count') {
       return ok({
-        outstanding: announcements.filter(a => !a.dismissed).length,
+        outstanding: announcements.filter(a => !a.dismissed && visible(a))
+          .length,
       });
     }
     if (route === 'GET /api/v1/announcements') {
       const rows = announcements
-        .filter(a => !a.dismissed)
+        .filter(a => !a.dismissed && visible(a))
         .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
       return ok(page(rows.map(announcementView), query));
     }
@@ -308,6 +329,9 @@ export function createMockService(options: { latencyMs?: number } = {}) {
       if (action) found.dismissed = true;
       return ok(announcementView(found));
     }
+
+    const handled = admin.handle(request);
+    if (handled) return handled;
 
     return {
       status: 501,

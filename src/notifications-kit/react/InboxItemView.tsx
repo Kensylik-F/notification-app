@@ -17,6 +17,9 @@ export interface InboxItemViewProps {
   onDismissed?: (entry: InboxEntry) => void;
   /** Extra controls next to "Dismiss". */
   actions?: ReactNode;
+  /** Render the subject as the heading. Turn off when the host page already
+   *  shows it in its own header (see `useInboxItemTitle`). Default: `true`. */
+  showSubject?: boolean;
 }
 
 /** One notification with its rendered subject and body. */
@@ -25,6 +28,7 @@ export function InboxItemView({
   autoMarkRead = true,
   onDismissed,
   actions,
+  showSubject = true,
 }: InboxItemViewProps) {
   const { t, locale, renderHtml, describeItem } = useNotificationsContext();
   const item = useInboxItem(id);
@@ -79,31 +83,33 @@ export function InboxItemView({
   }
 
   const description = describeItem(entry);
-  const subject =
-    entry.subject ??
-    description?.title ??
-    entry.category ??
-    t('inbox.untitled');
-  const categoryLabel = entry.subject
-    ? (description?.title ?? entry.category)
-    : null;
+  // Never the raw category code: the host's label or a neutral word.
+  const subject = entry.subject ?? description?.title ?? t('inbox.untitled');
+  const categoryLabel = entry.subject ? description?.title : description?.hint;
   const received = formatDateTime(entry.createdAt, locale);
   const html = entry.bodyHtml && renderHtml ? entry.bodyHtml : null;
 
   return (
     <article className={cx(styles.root, styles.item)}>
-      <header className={styles.itemHeader}>
-        <div className={styles.itemHeading}>
-          <h2 className={styles.itemSubject}>{subject}</h2>
-          <div className={styles.itemMeta}>
-            {entry.priority === 'HIGH' && (
-              <span className={styles.tag}>{t('priority.HIGH')}</span>
-            )}
-            {categoryLabel && <span>{categoryLabel}</span>}
-            {received && <span>{t('item.received', { date: received })}</span>}
-          </div>
+      <header className={styles.itemHeading}>
+        {showSubject && <h2 className={styles.itemSubject}>{subject}</h2>}
+        <div className={styles.itemMeta}>
+          {entry.priority === 'HIGH' && (
+            <span className={styles.tag}>{t('priority.HIGH')}</span>
+          )}
+          {categoryLabel && <span>{categoryLabel}</span>}
+          {received && <span>{t('item.received', { date: received })}</span>}
         </div>
-        <div className={styles.dialogActions}>
+      </header>
+      {html !== null && renderHtml ? (
+        <div className={styles.itemBody}>{renderHtml(html, entry)}</div>
+      ) : entry.bodyText ? (
+        <p className={cx(styles.bodyText, styles.itemBody)}>{entry.bodyText}</p>
+      ) : (
+        <p className={styles.stateNote}>{t('item.noBody')}</p>
+      )}
+      {(actions || !entry.dismissed) && (
+        <footer className={styles.itemActions}>
           {actions}
           {!entry.dismissed && (
             <Button
@@ -117,15 +123,16 @@ export function InboxItemView({
               {t('item.dismiss')}
             </Button>
           )}
-        </div>
-      </header>
-      {html !== null && renderHtml ? (
-        <div>{renderHtml(html, entry)}</div>
-      ) : entry.bodyText ? (
-        <p className={styles.bodyText}>{entry.bodyText}</p>
-      ) : (
-        <p className={styles.stateNote}>{t('item.noBody')}</p>
+        </footer>
       )}
     </article>
   );
+}
+
+/** The heading `InboxItemView` would show - for a host page header. */
+export function useInboxItemTitle(id: string | undefined): string | undefined {
+  const { t, describeItem } = useNotificationsContext();
+  const { data } = useInboxItem(id);
+  if (!data) return undefined;
+  return data.subject ?? describeItem(data)?.title ?? t('inbox.untitled');
 }

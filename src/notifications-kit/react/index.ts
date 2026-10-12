@@ -11,12 +11,14 @@ export {
   useAnnouncements,
   useDismissAnnouncement,
   useInboxCommands,
+  useInboxDetails,
   useInboxItem,
   useInboxList,
   useInboxSubjects,
   useOutstandingAnnouncementCount,
   useUnreadBadge,
   useUnreadCount,
+  type InboxDetails,
   type InboxListOptions,
 } from './hooks';
 export {
@@ -31,7 +33,11 @@ export {
   type InboxListProps,
   type InboxPanelProps,
 } from './InboxPanel';
-export { InboxItemView, type InboxItemViewProps } from './InboxItemView';
+export {
+  InboxItemView,
+  useInboxItemTitle,
+  type InboxItemViewProps,
+} from './InboxItemView';
 export {
   AnnouncementsHost,
   type AnnouncementsHostProps,
@@ -54,3 +60,48 @@ export {
   type Translate,
 } from './messages';
 export { formatDateTime, formatRelative } from './format';
+export {
+  type AdminCategory,
+  type AdminOptions,
+  type AdminRole,
+  type NotificationPermissions,
+  type ResolvedAdminOptions,
+} from './context';
+export {
+  NotificationComposer,
+  type NotificationComposerProps,
+} from './admin/NotificationComposer';
+export {
+  DeliveryLog,
+  DeliveryTable,
+  StatusBadge,
+  type DeliveryLogProps,
+} from './admin/DeliveryLog';
+export {
+  AnnouncementPublisher,
+  type AnnouncementPublisherProps,
+} from './admin/AnnouncementPublisher';
+export {
+  EmailRunProgress,
+  PublishedAnnouncements,
+} from './admin/PublishedAnnouncements';
+export { TemplatePreview } from './admin/TemplatePreview';
+export { RecipientField } from './admin/RecipientField';
+export { describeError } from './admin/errors';
+export {
+  emailRunPollDelay,
+  requestIsSettling,
+  useCancelEmailRun,
+  useCorrectAnnouncement,
+  useDeliveryCommands,
+  useDeliveryContent,
+  useDeliveryHistory,
+  useDeliverySearch,
+  useEmailRun,
+  useNotificationRequest,
+  usePublishAnnouncement,
+  usePublishedAnnouncements,
+  useSendNotification,
+  useTemplatePreview,
+  type PublishedRecord,
+} from './admin/hooks';

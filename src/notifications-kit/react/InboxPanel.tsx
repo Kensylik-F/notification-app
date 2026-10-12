@@ -1,12 +1,13 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 
 import { isNotificationsError } from '../core';
 import type { InboxEntry } from '../core';
 import { useNotificationsContext } from './context';
 import {
   useInboxCommands,
+  useInboxDetails,
   useInboxList,
-  useInboxSubjects,
   useUnreadCount,
 } from './hooks';
 import { InboxRow } from './InboxRow';
@@ -77,10 +78,19 @@ export interface InboxListProps {
   pageSize?: number;
   /** Show at most this many rows and no "more" control (bell dropdown). */
   limit?: number;
+  /**
+   * A row opens in place: a click expands it, shows the text and marks it
+   * read. With this prop an expanded row also offers "Open separately" -
+   * for a host that keeps a page per notification.
+   */
   onOpenItem?: (entry: InboxEntry) => void;
+  /** Extra controls inside an expanded row. */
+  rowActions?: (entry: InboxEntry) => ReactNode;
+  /** Mark a row read when it is expanded. Default: `true`. */
+  markReadOnExpand?: boolean;
   /** Report shown rows as seen. Default: `true`. */
   markSeen?: boolean;
-  /** Offer "dismiss" on each row. Default: `true`. */
+  /** Offer "dismiss" in an expanded row. Default: `true`. */
   dismissible?: boolean;
 }
 
@@ -99,17 +109,33 @@ export function InboxList({
   pageSize,
   limit,
   onOpenItem,
+  rowActions,
+  markReadOnExpand = true,
   markSeen = true,
   dismissible = true,
 }: InboxListProps) {
   const { t, enabled } = useNotificationsContext();
   const list = useInboxList({ unreadOnly, pageSize: limit ?? pageSize });
-  const { dismiss } = useInboxCommands();
+  const { dismiss, markRead } = useInboxCommands();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const entries =
     limit !== undefined ? list.entries.slice(0, limit) : list.entries;
-  const subjects = useInboxSubjects(entries);
+  const details = useInboxDetails(
+    entries,
+    expandedId === null ? [] : [expandedId]
+  );
   useMarkSeenOnShow(entries, markSeen && enabled);
+
+  const toggle = (entry: InboxEntry) => {
+    if (expandedId === entry.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(entry.id);
+    // Reading the text in place is what "read" means in the contract.
+    if (markReadOnExpand && !entry.read) markRead.mutate(entry.id);
+  };
 
   // One reading of the clock per render keeps every row's time consistent.
   const now = Date.now();
@@ -151,11 +177,20 @@ export function InboxList({
           <InboxRow
             key={entry.id}
             entry={entry}
-            full={subjects.get(entry.id)}
+            full={details.items.get(entry.id)}
+            fullError={details.errors.get(entry.id)}
             now={now}
-            onOpen={onOpenItem}
+            expanded={expandedId === entry.id}
+            onToggle={toggle}
+            onOpenSeparately={onOpenItem}
+            actions={rowActions}
             onDismiss={
-              dismissible ? target => dismiss.mutate(target.id) : undefined
+              dismissible
+                ? target => {
+                    setExpandedId(null);
+                    dismiss.mutate(target.id);
+                  }
+                : undefined
             }
           />
         ))}

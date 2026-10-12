@@ -152,14 +152,12 @@
 }
 
 .popover {
-  position: absolute;
-  top: calc(100% + var(--nk-space-sm, 8px));
-  inset-inline-end: 0;
+  /* Placed by NotificationBell (top, right/left, max-height). */
+  position: fixed;
   /* Above the announcement overlays: an open dropdown is what the person
      is looking at. */
   z-index: calc(var(--nk-z-overlay, 1000) + 10);
-  width: min(380px, calc(100vw - 32px));
-  max-height: min(520px, calc(100vh - 96px));
+  width: min(400px, calc(100vw - 32px));
   display: flex;
   flex-direction: column;
   background: var(--nk-color-surface-raised, #ffffff);
@@ -171,11 +169,7 @@
     0 2px 6px rgba(20, 35, 33, 0.08)
   );
   overflow: hidden;
-}
-
-.popoverAlignStart {
-  inset-inline-end: auto;
-  inset-inline-start: 0;
+  animation: nk-enter 0.14s ease-out;
 }
 
 .popoverHeader,
@@ -188,9 +182,14 @@
   padding: var(--nk-space-md, 12px) var(--nk-space-lg, 16px);
 }
 
+.popoverHeader {
+  border-bottom: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
+}
+
 .popoverFooter {
+  justify-content: center;
   border-top: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
-  padding-block: var(--nk-space-sm, 8px);
+  padding-block: var(--nk-space-xs, 4px);
 }
 
 .popoverTitle {
@@ -203,7 +202,6 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 var(--nk-space-xs, 4px) var(--nk-space-xs, 4px);
 }
 
 /* ── inbox ────────────────────────────────────────────────────────────── */
@@ -268,27 +266,35 @@
   list-style: none;
 }
 
-.row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--nk-space-xs, 4px);
-  border-radius: var(--nk-radius-md, 10px);
+/* On a page the list is a card; in the dropdown it is bare. */
+.panel .list {
+  overflow: hidden;
+  background: var(--nk-color-surface-raised, #ffffff);
+  border: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
+  border-radius: var(--nk-radius-lg, 14px);
 }
 
-.row:hover,
-.row:focus-within {
+.row {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row[data-expanded='true'] {
   background: var(--nk-color-surface-hover, rgba(22, 40, 38, 0.06));
 }
 
 .rowMain {
-  flex: 1 1 auto;
-  min-width: 0;
   display: flex;
   align-items: flex-start;
   gap: var(--nk-space-md, 12px);
-  padding: var(--nk-space-md, 12px);
+  width: 100%;
+  padding: var(--nk-space-md, 12px) var(--nk-space-lg, 16px);
   border: 0;
-  border-radius: var(--nk-radius-md, 10px);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -296,8 +302,12 @@
   cursor: pointer;
 }
 
-.rowMain:disabled {
-  cursor: default;
+.rowMain:hover {
+  background: var(--nk-color-surface-hover, rgba(22, 40, 38, 0.06));
+}
+
+.rowMain:focus-visible {
+  outline-offset: -2px;
 }
 
 /* The mark keeps its width when the row is read, so titles stay aligned. */
@@ -330,36 +340,57 @@
   font-weight: 400;
 }
 
+.row[data-expanded='true'] .rowTitle {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .rowTitle[data-unread='true'] {
   font-weight: 600;
 }
 
-.rowHint,
-.rowTime {
+.rowMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--nk-space-xs, 4px);
   font-size: var(--nk-font-size-caption, 12px);
   color: var(--nk-color-text-muted, #5d6866);
 }
 
-.rowHint {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.rowMeta .tag {
+  margin-inline-end: var(--nk-space-xs, 4px);
 }
 
-.rowTime {
+.rowChevron {
   flex: none;
-  white-space: nowrap;
-  margin-top: 1px;
+  display: inline-flex;
+  margin-top: 3px;
+  color: var(--nk-color-text-muted, #5d6866);
+  transition: transform 0.15s ease;
 }
 
-.rowAction {
-  margin: 6px 6px 0 0;
-  opacity: 0;
+.row[data-expanded='true'] .rowChevron {
+  transform: rotate(180deg);
 }
 
-.row:hover .rowAction,
-.row:focus-within .rowAction {
-  opacity: 1;
+/* Under the title, aligned with it (mark 8px + gap). */
+.rowBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nk-space-md, 12px);
+  padding: 0 var(--nk-space-lg, 16px) var(--nk-space-md, 12px)
+    calc(var(--nk-space-lg, 16px) + 8px + var(--nk-space-md, 12px));
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--nk-space-sm, 8px);
+}
+
+.rowLoading {
+  display: inline-flex;
 }
 
 .tag {
@@ -373,12 +404,6 @@
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
-}
-
-.skeleton {
-  height: 12px;
-  border-radius: 6px;
-  background: var(--nk-color-surface-hover, rgba(22, 40, 38, 0.06));
 }
 
 .state {
@@ -421,16 +446,7 @@
   min-width: 0;
 }
 
-.itemHeader {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--nk-space-sm, 8px) var(--nk-space-lg, 16px);
-}
-
 .itemHeading {
-  flex: 1 1 320px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -452,6 +468,17 @@
   gap: var(--nk-space-sm, 8px);
   font-size: var(--nk-font-size-caption, 12px);
   color: var(--nk-color-text-muted, #5d6866);
+}
+
+.itemBody {
+  padding-top: var(--nk-space-lg, 16px);
+  border-top: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
+}
+
+.itemActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--nk-space-sm, 8px);
 }
 
 .bodyText {
@@ -618,11 +645,16 @@
 
 @media (prefers-reduced-motion: reduce) {
   .card,
-  .dialog {
+  .dialog,
+  .popover {
     animation: none;
   }
 
   .spinner {
     animation-duration: 2.4s;
+  }
+
+  .rowChevron {
+    transition: none;
   }
 }

@@ -356,6 +356,10 @@ describe('model', () => {
     ).toBe(false);
     expect(toInboxPage({ content: rows, offset: 0 }, 1).hasMore).toBe(true);
     expect(toInboxPage({ content: rows, offset: 0 }, 25).hasMore).toBe(false);
+    // Fewer rows than asked for ends the feed even if the total claims more.
+    expect(
+      toInboxPage({ content: rows, offset: 0, totalElements: 12 }, 25).hasMore
+    ).toBe(false);
   });
 
   it('keeps content when a transition answers without it', () => {
