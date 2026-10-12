@@ -66,13 +66,4 @@ export {
   type Priority,
 } from './model';
 export { notificationKeys } from './keys';
-export {
-  CHANNEL_ORDER,
-  SERVICE_TEMPLATES,
-  channelsOf,
-  missingVariables,
-  toVariables,
-  type TemplateDescriptor,
-  type TemplateVariable,
-} from './templates';
 export * from './admin';

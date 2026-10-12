@@ -222,6 +222,58 @@
   min-height: 40px;
 }
 
+.panelActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--nk-space-xs, 4px);
+}
+
+.confirmAnchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.confirmPop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--nk-space-sm, 8px);
+  padding: var(--nk-space-md, 12px) var(--nk-space-lg, 16px);
+  background: var(--nk-color-surface-raised, #ffffff);
+  border: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
+  border-radius: var(--nk-radius-md, 10px);
+  box-shadow: var(
+    --nk-shadow,
+    0 14px 36px rgba(20, 35, 33, 0.16),
+    0 2px 6px rgba(20, 35, 33, 0.08)
+  );
+  animation: nk-enter 0.14s ease-out;
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--nk-space-sm, 8px);
+}
+
+.dismissAll {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--nk-space-sm, 8px);
+  min-height: var(--nk-control-height, 32px);
+}
+
+.dismissAllText {
+  font-size: var(--nk-font-size-label, 13px);
+  color: var(--nk-color-text-muted, #5d6866);
+  font-variant-numeric: tabular-nums;
+}
+
 .tabs {
   display: inline-flex;
   gap: 2px;
@@ -481,6 +533,14 @@
   gap: var(--nk-space-sm, 8px);
 }
 
+.htmlFrame {
+  display: block;
+  width: 100%;
+  height: 40px;
+  border: 0;
+  background: transparent;
+}
+
 .bodyText {
   margin: 0;
   white-space: pre-wrap;
@@ -568,8 +628,8 @@
   overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   overflow: hidden;
 }
 
@@ -625,6 +685,138 @@
   gap: var(--nk-space-sm, 8px);
 }
 
+.feedIcon {
+  flex: none;
+  display: inline-flex;
+  margin-top: 2px;
+  color: var(--nk-color-accent-text, #1d5d58);
+}
+
+.feedIcon[data-muted='true'] {
+  color: var(--nk-color-text-muted, #5d6866);
+}
+
+.feedNote {
+  margin: 0;
+  padding: 0 var(--nk-space-xs, 4px);
+}
+
+/* ── corner deck ──────────────────────────────────────────────────────── */
+
+.deck {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--nk-space-sm, 8px);
+}
+
+.deckCard {
+  position: relative;
+  transform-origin: 50% 0;
+  transition:
+    transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.2s ease;
+}
+
+/* Folded: the newest card in front; the next two peek out underneath,
+   narrower and blank, like a stack of phone notifications. */
+.deck[data-stacked='true'] {
+  margin-bottom: 22px;
+  cursor: pointer;
+}
+
+/* Blank backs, a shade darker, so the layers read as layers. */
+.deck[data-stacked='true'] .deckCard:not(:first-child) {
+  background: color-mix(
+    in srgb,
+    var(--nk-color-surface-raised, #ffffff) 88%,
+    var(--nk-color-text, #1b2524)
+  );
+}
+
+.deck[data-stacked='true'] .deckCard {
+  z-index: calc(10 - var(--nk-deck-i));
+  transform: translateY(calc(min(var(--nk-deck-i), 2) * 11px))
+    scale(calc(1 - min(var(--nk-deck-i), 2) * 0.055));
+  opacity: clamp(0, calc(3 - var(--nk-deck-i)), 1);
+}
+
+.deck[data-stacked='true'] .deckCard:not(:first-child) {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.deck[data-stacked='true'] .deckCard:not(:first-child) > * {
+  visibility: hidden;
+}
+
+.deck[data-stacked='true']:hover .deckCard,
+.deck[data-stacked='true']:focus-visible .deckCard {
+  transform: translateY(calc(min(var(--nk-deck-i), 2) * 12px))
+    scale(calc(1 - min(var(--nk-deck-i), 2) * 0.04));
+}
+
+.deck[data-stacked='true']:focus-visible {
+  outline: none;
+}
+
+.deck[data-stacked='true']:focus-visible .deckCard:first-child {
+  outline: 2px solid var(--nk-color-accent, #2a756f);
+  outline-offset: 2px;
+}
+
+.cardFooter {
+  margin-top: 2px;
+  font-size: var(--nk-font-size-caption, 12px);
+  font-weight: 500;
+  color: var(--nk-color-accent-text, #1d5d58);
+}
+
+/* Fanned out: a scrollable list. The padding leaves room for the cards'
+   shadows, which the scroll box would otherwise cut into a hard edge. */
+.deck[data-expanded='true'] {
+  max-height: calc(100vh - var(--nk-overlay-top, 16px) - 72px);
+  overflow-y: auto;
+  padding: 6px 20px 40px;
+  margin: -6px -20px -40px;
+  scrollbar-width: thin;
+}
+
+.deck[data-expanded='true'] .deckCard {
+  animation: nk-enter 0.22s ease-out both;
+  animation-delay: calc(var(--nk-deck-i) * 30ms);
+}
+
+.deckBar {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--nk-space-xs, 4px);
+  align-self: flex-end;
+  padding: 2px;
+  border-radius: var(--nk-radius-md, 10px);
+  background: var(--nk-color-surface-raised, #ffffff);
+  border: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
+  box-shadow: 0 4px 14px rgba(20, 35, 33, 0.12);
+}
+
+/* Anchored to the bottom edge, the stack peeks upwards. */
+.overlayCornerBottom .deck[data-stacked='true'] {
+  margin: 22px 0 0;
+}
+
+.overlayCornerBottom .deck[data-stacked='true'] .deckCard {
+  transform-origin: 50% 100%;
+  transform: translateY(calc(min(var(--nk-deck-i), 2) * -11px))
+    scale(calc(1 - min(var(--nk-deck-i), 2) * 0.055));
+}
+
+.overlayCornerBottom .deck[data-stacked='true']:hover .deckCard {
+  transform: translateY(calc(min(var(--nk-deck-i), 2) * -14px))
+    scale(calc(1 - min(var(--nk-deck-i), 2) * 0.04));
+}
+
 /* On a narrow screen the two overlays would land on top of each other, so
    the corner cards move to the bottom edge. */
 @media (max-width: 720px) {
@@ -633,6 +825,16 @@
     bottom: var(--nk-overlay-bottom, 16px);
     inset-inline: 16px;
     width: auto;
+  }
+
+  .overlayCorner .deck[data-stacked='true'] {
+    margin: 22px 0 0;
+  }
+
+  .overlayCorner .deck[data-stacked='true'] .deckCard {
+    transform-origin: 50% 100%;
+    transform: translateY(calc(min(var(--nk-deck-i), 2) * -11px))
+      scale(calc(1 - min(var(--nk-deck-i), 2) * 0.055));
   }
 }
 
@@ -644,6 +846,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .deckCard {
+    transition: none;
+  }
+
+  .deck[data-expanded='true'] .deckCard,
   .card,
   .dialog,
   .popover {

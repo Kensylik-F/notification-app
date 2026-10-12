@@ -226,20 +226,29 @@ export function CheckChips<T extends string>({
   );
 }
 
-/** A titled block of a form. */
+/** A titled block of a form, optionally numbered as a step. */
 export function FormSection({
   title,
   children,
   aside,
+  step,
 }: {
   title: ReactNode;
   children: ReactNode;
   aside?: ReactNode;
+  step?: number;
 }) {
   return (
     <section className={styles.section}>
       <header className={styles.sectionHeader}>
-        <h3 className={styles.sectionTitle}>{title}</h3>
+        <h3 className={styles.sectionTitle}>
+          {step !== undefined && (
+            <span className={styles.step} aria-hidden='true'>
+              {step}
+            </span>
+          )}
+          {title}
+        </h3>
         {aside}
       </header>
       <div className={styles.sectionBody}>{children}</div>
@@ -296,34 +305,4 @@ export function localDateToIso(value: string, endOfDay = false): string {
     ? new Date(y, m - 1, d, 23, 59, 59, 999)
     : new Date(y, m - 1, d);
   return date.toISOString();
-}
-
-// ------------------------------------------------------------- html frame
-
-const FRAME_BASE =
-  '<style>html{color-scheme:light}body{margin:12px;font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1b2524;background:#fff;overflow-wrap:anywhere}</style>';
-const MIN_FRAME = 72;
-const MAX_FRAME = 480;
-
-/**
- * Server-rendered HTML, isolated: no scripts run (`sandbox` without
- * `allow-scripts`), page styles do not leak in and the template's do not
- * leak out. Same-origin only so the frame can be sized to its content.
- */
-export function HtmlFrame({ html, title }: { html: string; title: string }) {
-  return (
-    <iframe
-      className={styles.previewFrame}
-      title={title}
-      sandbox='allow-same-origin'
-      srcDoc={FRAME_BASE + html}
-      onLoad={event => {
-        const frame = event.currentTarget;
-        const height = frame.contentDocument?.documentElement.scrollHeight;
-        if (height) {
-          frame.style.height = `${Math.min(MAX_FRAME, Math.max(MIN_FRAME, height))}px`;
-        }
-      }}
-    />
-  );
 }

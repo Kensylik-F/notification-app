@@ -4,7 +4,7 @@ import { isNotificationsError } from '../core';
 import type { InboxEntry } from '../core';
 import { useNotificationsContext } from './context';
 import { formatRelative } from './format';
-import { Button, Icon, Spinner } from './primitives';
+import { Button, HtmlFrame, Icon, Spinner } from './primitives';
 import styles from './styles.module.css';
 
 interface InboxRowProps {
@@ -57,14 +57,17 @@ export function InboxRow({
 
   let body: ReactNode;
   if (full) {
-    body =
-      bodyHtml && renderHtml ? (
+    body = bodyHtml ? (
+      renderHtml ? (
         renderHtml(bodyHtml, full)
-      ) : bodyText ? (
-        <p className={styles.bodyText}>{bodyText}</p>
       ) : (
-        <p className={styles.stateNote}>{t('item.noBody')}</p>
-      );
+        <HtmlFrame html={bodyHtml} title={title} />
+      )
+    ) : bodyText ? (
+      <p className={styles.bodyText}>{bodyText}</p>
+    ) : (
+      <p className={styles.stateNote}>{t('item.noBody')}</p>
+    );
   } else if (fullError) {
     const notFound =
       isNotificationsError(fullError) && fullError.status === 404;

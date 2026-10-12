@@ -3,86 +3,63 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { TEMPLATE_KEY_PATTERN } from '../../core';
 import type { Channel, RenderPreviewRequest } from '../../core';
 import { useNotificationsContext } from '../context';
-import { Button, Spinner } from '../primitives';
-import { useTemplatePreview } from './hooks';
+import { HtmlFrame, IconButton, Spinner } from '../primitives';
 import styles from './admin.module.css';
 import { ErrorNotice } from './errors';
-import { HtmlFrame, Segmented, Select } from './forms';
+import { Segmented } from './forms';
+import { useTemplatePreview } from './hooks';
 
 interface TemplatePreviewProps {
   templateKey: string;
-  /** Channels to offer; the first is selected. */
-  channels: readonly Channel[];
-  /** Languages per channel (the template's `channels`). A channel without
-   *  an entry - the service picks its default. */
-  locales: Partial<Record<Channel, readonly string[]>>;
   variables: Record<string, string>;
+  /** Channels to show; the first is selected. */
+  channels: readonly Channel[];
+  /** Nothing to render yet (e.g. an empty editor). */
+  idle?: boolean;
 }
 
-const AUTO_REFRESH_MS = 700;
+const DEBOUNCE_MS = 600;
 
 /**
- * The service renders the message exactly as a send would (same strict
- * renderer), so a missing variable or a broken template shows up here.
- * After the first render it follows the form, debounced.
+ * The message as the service renders it - the same strict renderer a send
+ * uses, so a wrong key or a missing variable shows up here first. Follows
+ * the form on its own, debounced.
  */
-const NO_LOCALES: readonly string[] = [];
-
 export function TemplatePreview({
   templateKey,
-  channels,
-  locales: localesByChannel,
   variables,
+  channels,
+  idle,
 }: TemplatePreviewProps) {
-  const { t, admin, locale: uiLocale } = useNotificationsContext();
+  const { t, admin, locale } = useNotificationsContext();
   const preview = useTemplatePreview();
-  const [channel, setChannel] = useState<Channel | undefined>(channels[0]);
-  const [locale, setLocale] = useState<string>('');
-  const [started, setStarted] = useState(false);
-  const locales = (channel && localesByChannel[channel]) || NO_LOCALES;
+  const [picked, setPicked] = useState<Channel | undefined>(channels[0]);
+  const channel = picked && channels.includes(picked) ? picked : channels[0];
 
-  // Keep the selection valid when the template (and its channels) change.
-  useEffect(() => {
-    if (!channel || !channels.includes(channel)) setChannel(channels[0]);
-  }, [channels, channel]);
-
-  useEffect(() => {
-    if (locales.length === 0) setLocale('');
-    else if (!locales.includes(locale)) {
-      const own = uiLocale.slice(0, 2).toLowerCase();
-      setLocale(locales.includes(own) ? own : (locales[0] ?? ''));
-    }
-  }, [locales, locale, uiLocale]);
-
-  const validKey = TEMPLATE_KEY_PATTERN.test(templateKey);
   const request = useMemo<RenderPreviewRequest | null>(
     () =>
-      validKey && channel
+      !idle && channel && TEMPLATE_KEY_PATTERN.test(templateKey)
         ? {
             templateKey,
             channel,
-            ...(locale ? { locale } : {}),
+            locale: locale.slice(0, 2).toLowerCase(),
             variables,
           }
         : null,
-    [validKey, templateKey, channel, locale, variables]
+    [idle, channel, templateKey, locale, variables]
   );
   const requestKey = JSON.stringify(request);
   // The object changes identity on every render; its content is `requestKey`.
   const requestRef = useRef(request);
   requestRef.current = request;
-
   const run = preview.mutate;
-  const lastSent = useRef<string | null>(null);
+
   useEffect(() => {
     const current = requestRef.current;
-    if (!started || !current || lastSent.current === requestKey) return;
-    const timer = setTimeout(() => {
-      lastSent.current = requestKey;
-      run(current);
-    }, AUTO_REFRESH_MS);
+    if (!current || !admin.permissions.preview) return;
+    const timer = setTimeout(() => run(current), DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [started, requestKey, run]);
+  }, [requestKey, run, admin.permissions.preview]);
 
   if (!admin.permissions.preview) {
     return (
@@ -93,103 +70,56 @@ export function TemplatePreview({
     );
   }
 
-  const result = preview.data;
-  const html = result?.htmlBody ?? null;
-  const text = result?.textBody ?? null;
+  const result = request ? preview.data : undefined;
 
   return (
     <aside className={styles.preview} aria-live='polite'>
       <header className={styles.previewHeader}>
         <h3 className={styles.sectionTitle}>{t('preview.title')}</h3>
-        {request && (
-          <Button
-            variant={started ? 'ghost' : 'primary'}
-            icon={started ? 'refresh' : undefined}
-            disabled={preview.isPending}
-            onClick={() => {
-              setStarted(true);
-              lastSent.current = requestKey;
-              run(request);
-            }}
-          >
-            {started ? t('preview.refresh') : t('preview.run')}
-          </Button>
-        )}
+        <div className={styles.inlineRow}>
+          {preview.isPending && <Spinner label={t('item.loading')} />}
+          {request && (
+            <IconButton
+              icon='refresh'
+              small
+              label={t('preview.refresh')}
+              onClick={() => run(request)}
+            />
+          )}
+        </div>
       </header>
 
-      {!request ? (
-        <p className={styles.muted}>{t('preview.empty')}</p>
-      ) : (
-        <>
-          <div className={styles.previewControls}>
-            {channels.length > 1 && channel && (
-              <Segmented
-                name='nk-preview-channel'
-                value={channel}
-                options={channels.map(c => ({
-                  value: c,
-                  label: t(`channel.${c}`),
-                }))}
-                onChange={setChannel}
-              />
-            )}
-            {locales.length > 1 && (
-              <Select
-                aria-label={t('preview.locale')}
-                className={styles.selectCompact}
-                value={locale}
-                onChange={event => setLocale(event.target.value)}
-              >
-                {locales.map(l => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </div>
+      {channels.length > 1 && channel && (
+        <Segmented
+          name='nk-preview-channel'
+          value={channel}
+          options={channels.map(c => ({ value: c, label: t(`channel.${c}`) }))}
+          onChange={setPicked}
+        />
+      )}
 
-          {!started && !result && (
-            <p className={styles.muted}>{t('preview.idle')}</p>
+      {!request ? (
+        <div className={styles.previewEmpty}>{t('preview.empty')}</div>
+      ) : preview.isError ? (
+        <ErrorNotice error={preview.error} t={t} />
+      ) : !result ? (
+        <div className={styles.previewEmpty}>{t('item.loading')}</div>
+      ) : (
+        <div
+          className={styles.previewSheet}
+          data-pending={preview.isPending || undefined}
+        >
+          {result.subject && (
+            <div className={styles.previewSubject}>{result.subject}</div>
           )}
-          {preview.isPending && !result && (
-            <div className={styles.previewLoading}>
-              <Spinner label={t('item.loading')} />
-            </div>
+          {result.htmlBody ? (
+            <HtmlFrame html={result.htmlBody} title={t('preview.title')} />
+          ) : result.textBody ? (
+            <p className={styles.previewText}>{result.textBody}</p>
+          ) : (
+            <p className={styles.muted}>{t('item.noBody')}</p>
           )}
-          {preview.isError && <ErrorNotice error={preview.error} t={t} />}
-          {result && !preview.isError && (
-            <div
-              className={styles.previewSheet}
-              data-pending={preview.isPending || undefined}
-            >
-              {result.subject && (
-                <div className={styles.previewSubject}>
-                  <span className={styles.muted}>{t('preview.subject')}</span>
-                  <strong>{result.subject}</strong>
-                </div>
-              )}
-              {html ? (
-                <HtmlFrame html={html} title={t('preview.title')} />
-              ) : text ? (
-                <p className={styles.previewText}>{text}</p>
-              ) : (
-                <p className={styles.muted}>{t('item.noBody')}</p>
-              )}
-              {(result.templateVersion || result.resolvedLocale) && (
-                <span className={styles.previewMeta}>
-                  {[
-                    result.resolvedLocale,
-                    result.templateVersion &&
-                      t('preview.version', { version: result.templateVersion }),
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
-              )}
-            </div>
-          )}
-        </>
+        </div>
       )}
     </aside>
   );

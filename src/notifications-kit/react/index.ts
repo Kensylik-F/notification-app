@@ -8,8 +8,11 @@ export {
   type PollingOptions,
 } from './context';
 export {
+  useAnnouncement,
   useAnnouncements,
   useDismissAnnouncement,
+  useDismissedAnnouncements,
+  useDismissAll,
   useInboxCommands,
   useInboxDetails,
   useInboxItem,
@@ -18,6 +21,7 @@ export {
   useOutstandingAnnouncementCount,
   useUnreadBadge,
   useUnreadCount,
+  type DismissAllProgress,
   type InboxDetails,
   type InboxListOptions,
 } from './hooks';
@@ -26,6 +30,7 @@ export {
   type NotificationBellProps,
 } from './NotificationBell';
 export {
+  DismissAllButton,
   InboxList,
   InboxPanel,
   InboxTabs,
@@ -38,6 +43,14 @@ export {
   useInboxItemTitle,
   type InboxItemViewProps,
 } from './InboxItemView';
+export {
+  AnnouncementFeed,
+  type AnnouncementFeedProps,
+} from './AnnouncementFeed';
+export {
+  readDismissed,
+  type DismissedAnnouncement,
+} from './announcementHistory';
 export {
   AnnouncementsHost,
   type AnnouncementsHostProps,
@@ -81,10 +94,11 @@ export {
   AnnouncementPublisher,
   type AnnouncementPublisherProps,
 } from './admin/AnnouncementPublisher';
-export {
-  EmailRunProgress,
-  PublishedAnnouncements,
-} from './admin/PublishedAnnouncements';
+export { EmailRunProgress } from './admin/AnnouncementPublisher';
+export { RichTextEditor } from './admin/RichTextEditor';
+export { MessageFields } from './admin/MessageFields';
+export { Combobox, Dropdown, type DropdownOption } from './admin/Dropdown';
+export { htmlToText, sanitizeHtml } from './admin/richtext';
 export { TemplatePreview } from './admin/TemplatePreview';
 export { RecipientField } from './admin/RecipientField';
 export { describeError } from './admin/errors';
@@ -100,8 +114,6 @@ export {
   useEmailRun,
   useNotificationRequest,
   usePublishAnnouncement,
-  usePublishedAnnouncements,
   useSendNotification,
   useTemplatePreview,
-  type PublishedRecord,
 } from './admin/hooks';

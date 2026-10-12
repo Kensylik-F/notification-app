@@ -20,11 +20,18 @@ type Status =
   | 'SUPPRESSED'
   | 'CANCELLED';
 
-const FILES = import.meta.glob('../contract/templates/**/*.ftl', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-}) as Record<string, string>;
+// The service's example templates plus our free-form one, keyed the same way.
+const FILES = Object.fromEntries(
+  Object.entries(
+    import.meta.glob(
+      ['./templates/**/*.ftl', '../service-templates/**/*.ftl'],
+      { query: '?raw', import: 'default', eager: true }
+    ) as Record<string, string>
+  ).map(([path, text]) => [
+    path.replace('../service-templates/', './templates/'),
+    text,
+  ])
+);
 
 const CHANNEL_DIR: Record<Channel, string> = {
   EMAIL: 'email',
@@ -36,13 +43,11 @@ const CHANNEL_DIR: Record<Channel, string> = {
 class RenderError extends Error {}
 
 function file(key: string, channel: Channel, locale: string, name: string) {
-  return FILES[
-    `../contract/templates/${key}/${CHANNEL_DIR[channel]}/${locale}/${name}`
-  ];
+  return FILES[`./templates/${key}/${CHANNEL_DIR[channel]}/${locale}/${name}`];
 }
 
 function localesFor(key: string, channel: Channel): string[] {
-  const prefix = `../contract/templates/${key}/${CHANNEL_DIR[channel]}/`;
+  const prefix = `./templates/${key}/${CHANNEL_DIR[channel]}/`;
   return [
     ...new Set(
       Object.keys(FILES)
@@ -320,6 +325,7 @@ export interface PublishedAnnouncement {
   category: string;
   subject: string;
   bodyText: string;
+  bodyHtml: string | null;
   publishedAt: string;
   visibleFrom: string;
   visibleUntil: string;
@@ -331,7 +337,12 @@ const EMAILED_CATEGORIES = new Set(['platform-incident']);
 
 export function createAdminMock(options: {
   publish: (announcement: PublishedAnnouncement) => void;
-  correct: (id: string, subject: string, bodyText: string) => void;
+  correct: (
+    id: string,
+    subject: string,
+    bodyText: string,
+    bodyHtml: string | null
+  ) => void;
 }) {
   const deliveries: Delivery[] = [];
   const requests: RequestRecord[] = [];
@@ -781,6 +792,7 @@ export function createAdminMock(options: {
         category: String(body.category),
         subject: content.subject ?? '',
         bodyText: content.textBody ?? '',
+        bodyHtml: content.htmlBody ?? null,
         publishedAt: admin.publishedAt,
         visibleFrom: String(admin.visibleFrom),
         visibleUntil: String(admin.visibleUntil),
@@ -806,7 +818,12 @@ export function createAdminMock(options: {
           'ru',
           (body.variables ?? {}) as Record<string, unknown>
         );
-        options.correct(m[1]!, content?.subject ?? '', content?.textBody ?? '');
+        options.correct(
+          m[1]!,
+          content?.subject ?? '',
+          content?.textBody ?? '',
+          content?.htmlBody ?? null
+        );
       } catch (error) {
         if (error instanceof RenderError) {
           return problem(

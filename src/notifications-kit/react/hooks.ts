@@ -6,10 +6,11 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   PAGE_LIMITS,
+  isNotificationsError,
   mergeInboxEntry,
   notificationKeys,
   odata,
@@ -28,6 +29,12 @@ import {
   removeEntry,
 } from './cache';
 import type { InboxListData } from './cache';
+import {
+  readDismissed,
+  rememberDismissed,
+  subscribeDismissed,
+} from './announcementHistory';
+import type { DismissedAnnouncement } from './announcementHistory';
 import { useNotificationsContext } from './context';
 
 const retry = (failureCount: number, error: unknown) =>
@@ -322,6 +329,93 @@ export function useInboxCommands() {
   return { markRead, markSeen, markAllRead, dismiss };
 }
 
+// ------------------------------------------------------------- dismiss all
+
+const DISMISS_PAGE = PAGE_LIMITS.MAX_PAGE_SIZE;
+const DISMISS_CONCURRENCY = 4;
+const DISMISS_MAX_ROUNDS = 200;
+
+export interface DismissAllProgress {
+  done: number;
+  failed: number;
+  /** From the first page; `null` when the service sent no total. */
+  total: number | null;
+  running: boolean;
+}
+
+/**
+ * "Dismiss everything". The contract has no bulk dismiss, so this walks the
+ * list and dismisses item by item, a few at a time. Dismissed items leave
+ * the list, so it always reads the first page again; an item seen once is
+ * never sent twice, which also ends the walk against a server that ignores
+ * paging. Can be stopped; what was dismissed stays dismissed.
+ */
+export function useDismissAll() {
+  const { api, onError } = useNotificationsContext();
+  const client = useQueryClient();
+  const [progress, setProgress] = useState<DismissAllProgress | null>(null);
+  const stopRef = useRef(false);
+
+  const start = useCallback(async () => {
+    stopRef.current = false;
+    const seen = new Set<string>();
+    let done = 0;
+    let failed = 0;
+    let total: number | null = null;
+    const report = (running: boolean) =>
+      setProgress({ done, failed, total, running });
+    report(true);
+
+    const dismissOne = async (id: string) => {
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          await api.inbox.dismiss(id);
+          done += 1;
+          return;
+        } catch (error) {
+          if (!shouldRetry(attempt, error, { maxRetries: 1 })) {
+            failed += 1;
+            onError(error);
+            return;
+          }
+          await new Promise(r => setTimeout(r, retryDelay(attempt, error)));
+        }
+      }
+    };
+
+    try {
+      for (let round = 0; round < DISMISS_MAX_ROUNDS; round += 1) {
+        if (stopRef.current) break;
+        const page = await api.inbox.list({ top: DISMISS_PAGE, skip: 0 });
+        if (round === 0) total = page.total;
+        const fresh = page.items.filter(entry => !seen.has(entry.id));
+        if (fresh.length === 0) break;
+        fresh.forEach(entry => seen.add(entry.id));
+        for (let i = 0; i < fresh.length; i += DISMISS_CONCURRENCY) {
+          if (stopRef.current) break;
+          await Promise.all(
+            fresh.slice(i, i + DISMISS_CONCURRENCY).map(e => dismissOne(e.id))
+          );
+          report(true);
+        }
+      }
+    } catch (error) {
+      onError(error);
+      failed += 1;
+    } finally {
+      report(false);
+      void client.invalidateQueries({ queryKey: notificationKeys.inbox() });
+    }
+  }, [api, client, onError]);
+
+  const stop = useCallback(() => {
+    stopRef.current = true;
+  }, []);
+  const reset = useCallback(() => setProgress(null), []);
+
+  return { progress, start, stop, reset };
+}
+
 // ----------------------------------------------------------- announcements
 
 type AnnouncementPage = Page<AnnouncementEntry>;
@@ -356,9 +450,10 @@ export function useOutstandingAnnouncementCount() {
   });
 }
 
-/** Dismisses for this caller alone. Idempotent, so it is safe to repeat. */
+/** Dismisses for this caller alone. Idempotent, so it is safe to repeat.
+ *  The announcement is also remembered in this browser's history. */
 export function useDismissAnnouncement() {
-  const { api, onError } = useNotificationsContext();
+  const { api, onError, storageScope } = useNotificationsContext();
   const client = useQueryClient();
 
   return useMutation({
@@ -366,6 +461,15 @@ export function useDismissAnnouncement() {
     retry: retryCommand,
     retryDelay,
     onMutate: id => {
+      let known: AnnouncementEntry | undefined;
+      client
+        .getQueriesData<AnnouncementPage>({
+          queryKey: notificationKeys.announcementLists(),
+        })
+        .forEach(([, page]) => {
+          known ??= page?.items.find(entry => entry.id === id);
+        });
+      if (known) rememberDismissed(storageScope, known);
       client.setQueriesData<AnnouncementPage>(
         { queryKey: notificationKeys.announcementLists() },
         page =>
@@ -381,11 +485,44 @@ export function useDismissAnnouncement() {
         count === undefined ? count : Math.max(0, count - 1)
       );
     },
+    onSuccess: answer => {
+      // The service's own answer is the better record.
+      rememberDismissed(storageScope, answer);
+      client.setQueryData(notificationKeys.announcement(answer.id), answer);
+    },
     onError: error => {
       onError(error);
       void client.invalidateQueries({
         queryKey: notificationKeys.announcements(),
       });
     },
+  });
+}
+
+/** The history of announcements dismissed in this browser, newest first. */
+export function useDismissedAnnouncements(): DismissedAnnouncement[] {
+  const { storageScope } = useNotificationsContext();
+  const [items, setItems] = useState(() =>
+    typeof window === 'undefined' ? [] : readDismissed(storageScope)
+  );
+  useEffect(() => {
+    setItems(readDismissed(storageScope));
+    return subscribeDismissed(() => setItems(readDismissed(storageScope)));
+  }, [storageScope]);
+  return items;
+}
+
+/** One announcement by id. Answers 404 once its window has ended. */
+export function useAnnouncement(id: string | undefined) {
+  const { api, enabled } = useNotificationsContext();
+  return useQuery({
+    queryKey: notificationKeys.announcement(id ?? ''),
+    queryFn: ({ signal }) => api.announcements.get(id as string, { signal }),
+    enabled: enabled && Boolean(id),
+    staleTime: 60_000,
+    retry: (count, error) =>
+      !(isNotificationsError(error) && error.status === 404) &&
+      retry(count, error),
+    retryDelay,
   });
 }

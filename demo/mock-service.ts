@@ -18,6 +18,7 @@ interface StoredItem {
   locale: string;
   subject: string;
   bodyText: string;
+  bodyHtml?: string | null;
   createdAt: string;
   seenAt: string | null;
   readAt: string | null;
@@ -31,6 +32,7 @@ interface StoredAnnouncement {
   locale: string;
   subject: string;
   bodyText: string;
+  bodyHtml?: string | null;
   publishedAt: string;
   visibleFrom: string;
   visibleUntil: string;
@@ -129,6 +131,13 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     });
   }
 
+  // One item rendered from an HTML template, as the service would send it.
+  items[0]!.bodyHtml =
+    '<p>Согласующий запросил уточнить <strong>обоснование</strong> по предзаказу № 4821.</p>' +
+    '<ul><li>Откройте карточку предзаказа</li><li>Дополните поле «Обоснование»</li>' +
+    '<li>Отправьте повторно</li></ul>' +
+    '<p>Подробнее — в <a href="https://example.org/help">справке</a>.</p>';
+
   const announcements: StoredAnnouncement[] = [
     {
       id: uuid(901),
@@ -157,6 +166,32 @@ export function createMockService(options: { latencyMs?: number } = {}) {
       dismissed: false,
     },
     {
+      id: uuid(904),
+      category: 'platform-release',
+      categoryClass: 'PLATFORM',
+      locale: 'ru',
+      subject: 'Выгрузки стали быстрее',
+      bodyText: 'Отчёты до 100 000 строк формируются за минуту.',
+      bodyHtml:
+        '<p>Отчёты до <strong>100 000 строк</strong> формируются за минуту.</p>',
+      publishedAt: ago(90),
+      visibleFrom: ago(90),
+      visibleUntil: ahead(10),
+      dismissed: false,
+    },
+    {
+      id: uuid(905),
+      category: 'platform-release',
+      categoryClass: 'PLATFORM',
+      locale: 'ru',
+      subject: 'Новый фильтр в каталоге',
+      bodyText: 'Фильтруйте источники по владельцу и статусу согласования.',
+      publishedAt: ago(60),
+      visibleFrom: ago(60),
+      visibleUntil: ahead(10),
+      dismissed: false,
+    },
+    {
       id: uuid(903),
       category: 'platform-tip',
       categoryClass: 'PLATFORM',
@@ -179,9 +214,9 @@ export function createMockService(options: { latencyMs?: number } = {}) {
         locale: 'ru',
         dismissed: false,
       }),
-    correct: (id, subject, bodyText) => {
+    correct: (id, subject, bodyText, bodyHtml) => {
       const found = announcements.find(a => a.id === id);
-      if (found) Object.assign(found, { subject, bodyText });
+      if (found) Object.assign(found, { subject, bodyText, bodyHtml });
     },
   });
 
@@ -211,10 +246,11 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     ...listView(item),
     subject: item.subject,
     bodyText: item.bodyText,
+    bodyHtml: item.bodyHtml ?? null,
   });
   const announcementView = (a: StoredAnnouncement) => ({
     ...a,
-    bodyHtml: null,
+    bodyHtml: a.bodyHtml ?? null,
   });
 
   const ok = (data: unknown): TransportResponse => ({

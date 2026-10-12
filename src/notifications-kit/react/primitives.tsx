@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useCallback, useEffect, useRef } from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 import styles from './styles.module.css';
@@ -118,5 +118,65 @@ export function StateBlock({
       {note && <span className={styles.stateNote}>{note}</span>}
       {action}
     </div>
+  );
+}
+
+// ------------------------------------------------------------- html frame
+
+const MIN_FRAME = 40;
+const MAX_FRAME = 640;
+
+function frameDocument(html: string, host: HTMLElement | null): string {
+  const style = host ? getComputedStyle(host) : null;
+  const color = style?.color || '#1b2524';
+  const font = style?.fontFamily || 'system-ui, sans-serif';
+  const size = style?.fontSize || '14px';
+  const link = style?.getPropertyValue('--nk-color-accent-text').trim() ?? '';
+  // The frame stays transparent only when its colour scheme matches the
+  // page's; otherwise the browser paints an opaque backdrop behind it.
+  const scheme = style?.colorScheme || 'normal';
+  return (
+    '<!doctype html><html><head><meta charset="utf-8"><base target="_blank">' +
+    `<style>:root{color-scheme:${scheme}}html,body{margin:0;padding:0;background:transparent;color:${color};` +
+    `font-family:${font};font-size:${size};line-height:1.5;overflow-wrap:anywhere}` +
+    'body>*:first-child{margin-top:0}body>*:last-child{margin-bottom:0}' +
+    `a{color:${link || 'inherit'}}img{max-width:100%;height:auto}` +
+    'table{max-width:100%}</style></head><body>' +
+    html +
+    '</body></html>'
+  );
+}
+
+/**
+ * Server-rendered HTML, isolated: no scripts run (the sandbox has no
+ * `allow-scripts`), page styles do not leak in and the message's do not leak
+ * out. Text colour and font follow the surrounding page; the height follows
+ * the content. Links open in a new tab.
+ */
+export function HtmlFrame({ html, title }: { html: string; title: string }) {
+  const ref = useRef<HTMLIFrameElement>(null);
+
+  const fit = useCallback(() => {
+    const frame = ref.current;
+    const height = frame?.contentDocument?.documentElement.scrollHeight;
+    if (frame && height) {
+      frame.style.height = `${Math.min(MAX_FRAME, Math.max(MIN_FRAME, height))}px`;
+    }
+  }, []);
+
+  useEffect(() => {
+    const frame = ref.current;
+    if (!frame) return;
+    frame.srcdoc = frameDocument(html, frame.parentElement);
+  }, [html]);
+
+  return (
+    <iframe
+      ref={ref}
+      className={styles.htmlFrame}
+      title={title}
+      sandbox='allow-same-origin allow-popups allow-popups-to-escape-sandbox'
+      onLoad={fit}
+    />
   );
 }

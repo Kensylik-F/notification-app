@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react';
 
 import {
+  CHANNEL_ORDER,
   DELIVERY_STATUSES,
   canCancelDelivery,
   canRetryDelivery,
@@ -15,17 +16,18 @@ import type {
 import { useNotificationsContext } from '../context';
 import { formatDateTime, formatRelative } from '../format';
 import type { Translate } from '../messages';
-import { Button, Icon, Spinner, StateBlock, cx } from '../primitives';
-import styles from './admin.module.css';
-import { ErrorNotice } from './errors';
 import {
-  CheckChips,
-  Field,
+  Button,
   HtmlFrame,
-  Select,
-  TextInput,
-  localDateToIso,
-} from './forms';
+  Icon,
+  Spinner,
+  StateBlock,
+  cx,
+} from '../primitives';
+import styles from './admin.module.css';
+import { Dropdown } from './Dropdown';
+import { ErrorNotice } from './errors';
+import { CheckChips, Field, TextInput, localDateToIso } from './forms';
 import {
   useDeliveryCommands,
   useDeliveryContent,
@@ -33,7 +35,7 @@ import {
   useDeliverySearch,
 } from './hooks';
 
-const CHANNELS: Channel[] = ['EMAIL', 'IN_APP', 'CHAT', 'WEBHOOK'];
+const CHANNELS = CHANNEL_ORDER;
 
 /** Status → tone of its badge. */
 const TONE: Record<DeliveryStatus, 'ok' | 'progress' | 'bad' | 'muted'> = {
@@ -80,8 +82,7 @@ export function DeliveryTable({ rows, onShowRequest }: DeliveryTableProps) {
   const now = Date.now();
   // History and content need the support role; a sender sees the rows only.
   const expandable = admin.permissions.deliveries;
-  const templateName = (key: string | null | undefined) =>
-    key ? (admin.templateLabels[key] ?? key) : '—';
+  const templateName = (key: string | null | undefined) => key || '—';
 
   return (
     <div className={styles.tableWrap}>
@@ -448,20 +449,17 @@ export function DeliveryLog({ requestId, pageSize = 25 }: DeliveryLogProps) {
       <div className={styles.filters}>
         <Field label={t('deliveries.filter.channel')}>
           {({ id }) => (
-            <Select
+            <Dropdown<Channel | 'ANY'>
               id={id}
-              value={form.channel}
-              onChange={event =>
-                change({ channel: event.target.value as Channel | '' })
+              value={form.channel || 'ANY'}
+              options={[
+                { value: 'ANY', label: t('deliveries.filter.any') },
+                ...CHANNELS.map(c => ({ value: c, label: t(`channel.${c}`) })),
+              ]}
+              onChange={value =>
+                change({ channel: value === 'ANY' ? '' : value })
               }
-            >
-              <option value=''>{t('deliveries.filter.any')}</option>
-              {CHANNELS.map(c => (
-                <option key={c} value={c}>
-                  {t(`channel.${c}`)}
-                </option>
-              ))}
-            </Select>
+            />
           )}
         </Field>
         <Field label={t('deliveries.filter.template')}>

@@ -6,7 +6,7 @@ import type { InboxEntry } from '../core';
 import { useNotificationsContext } from './context';
 import { formatDateTime } from './format';
 import { useInboxCommands, useInboxItem } from './hooks';
-import { Button, Spinner, StateBlock, cx } from './primitives';
+import { Button, HtmlFrame, Spinner, StateBlock, cx } from './primitives';
 import styles from './styles.module.css';
 
 export interface InboxItemViewProps {
@@ -87,7 +87,7 @@ export function InboxItemView({
   const subject = entry.subject ?? description?.title ?? t('inbox.untitled');
   const categoryLabel = entry.subject ? description?.title : description?.hint;
   const received = formatDateTime(entry.createdAt, locale);
-  const html = entry.bodyHtml && renderHtml ? entry.bodyHtml : null;
+  const html = entry.bodyHtml ?? null;
 
   return (
     <article className={cx(styles.root, styles.item)}>
@@ -101,8 +101,14 @@ export function InboxItemView({
           {received && <span>{t('item.received', { date: received })}</span>}
         </div>
       </header>
-      {html !== null && renderHtml ? (
-        <div className={styles.itemBody}>{renderHtml(html, entry)}</div>
+      {html !== null ? (
+        <div className={styles.itemBody}>
+          {renderHtml ? (
+            renderHtml(html, entry)
+          ) : (
+            <HtmlFrame html={html} title={subject} />
+          )}
+        </div>
       ) : entry.bodyText ? (
         <p className={cx(styles.bodyText, styles.itemBody)}>{entry.bodyText}</p>
       ) : (

@@ -20,11 +20,10 @@ RFC 9457 для ошибок, конверт долгой операции.
 
 ## Шаблоны
 
-`contract/templates/` — копия каталога шаблонов сервиса на том же коммите:
-`services/notification-service/src/main/resources/templates/`. Из него
-`npm run generate` собирает `src/notifications-kit/core/generated/templates.ts`:
-ключи, каналы, языки и переменные шаблонов. При переходе на новый коммит
-каталог заменяется вместе с OpenAPI.
+Список шаблонов в API нет, и кит его не содержит. Примеры шаблонов сервиса
+(`welcome`, `password-reset`, …) лежат в `demo/templates/` — только для
+демо. Шаблон свободного сообщения, нужный редактору кита, — в
+`service-templates/` (см. README там).
 
 ## Прочее
 

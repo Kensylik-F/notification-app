@@ -47,10 +47,12 @@ export const ADMIN_MESSAGES_RU = {
   'compose.section.delivery': 'Как доставить',
   'compose.section.schedule': 'Когда',
   'compose.channels': 'Каналы',
-  'compose.channels.hint': 'Только каналы, для которых у шаблона есть текст.',
+  'compose.channels.hint':
+    'Чат и вебхук сработают, только если они включены в сервисе.',
   'compose.channels.error': 'Выберите хотя бы один канал',
   'compose.category': 'Категория',
-  'compose.category.hint': 'Код категории в сервисе, например preorder.',
+  'compose.category.hint':
+    'Код категории, под которой сервис учтёт уведомление.',
   'compose.category.error.required': 'Укажите категорию',
   'compose.category.error.tooLong': 'Не длиннее 128 символов',
   'compose.class': 'Класс',
@@ -59,7 +61,8 @@ export const ADMIN_MESSAGES_RU = {
   'compose.when.at': 'Дата и время отправки',
   'compose.when.error.invalid': 'Укажите дату и время',
   'compose.when.error.past': 'Это время уже прошло',
-  'compose.summary': 'Получателей: {recipients} · доставок: {deliveries}',
+  'compose.summary':
+    '{recipients} получ. × {channels} кан. = {deliveries} доставок',
   'compose.submit': 'Отправить',
   'compose.submitScheduled': 'Запланировать',
   'compose.sending': 'Отправка…',
@@ -94,8 +97,7 @@ export const ADMIN_MESSAGES_RU = {
   'preview.locale': 'Язык',
   'preview.run': 'Показать',
   'preview.refresh': 'Обновить',
-  'preview.empty':
-    'Выберите шаблон — здесь появится сообщение в том виде, в каком его получат.',
+  'preview.empty': 'Здесь появится сообщение в том виде, в каком его получат.',
   'preview.idle':
     'Сервис отрисует сообщение так же, как при отправке, и подскажет, каких данных не хватает.',
   'preview.subject': 'Тема',
@@ -162,7 +164,7 @@ export const ADMIN_MESSAGES_RU = {
   'announce.section.when': 'Когда показывать',
   'announce.category': 'Категория',
   'announce.category.hint':
-    'Категория задаёт, как показать объявление и уйдёт ли оно на почту.',
+    'Категория должна быть настроена в сервисе: она задаёт, уйдёт ли объявление на почту.',
   'announce.category.placeholder': 'Выберите категорию',
   'announce.category.custom': 'Другая категория…',
   'announce.category.customCode': 'Код категории',
@@ -217,6 +219,56 @@ export const ADMIN_MESSAGES_RU = {
   'emailRun.stopConfirm':
     'Остановить рассылку? Уже созданные письма отозвать нельзя.',
   'emailRun.stopping': 'Остановка запрошена',
+  'message.mode.freeform': 'Свой текст',
+  'message.mode.template': 'Шаблон сервиса',
+  'message.unavailable':
+    'Свой текст недоступен: в сервисе не подключён шаблон свободного сообщения.',
+  'message.subject': 'Тема',
+  'message.subject.placeholder': 'Например: Плановые работы 14 октября',
+  'message.subject.tooLong': 'Не длиннее {max} символов',
+  'message.body': 'Текст',
+  'message.body.hint': 'Для почты кит сам соберёт текстовую версию письма.',
+  'message.body.placeholder': 'Напишите сообщение…',
+  'message.body.required': 'Напишите текст сообщения',
+  'template.key': 'Ключ шаблона',
+  'template.keyHint':
+    'Ключ шаблона, который есть в сервисе. Латиница в нижнем регистре, цифры, точка, дефис.',
+  'template.variables': 'Переменные шаблона',
+  'template.variablesHint': 'Пустые значения не отправляются',
+  'template.error.tooLong': 'Не длиннее 128 символов',
+  'template.error.duplicate': 'Имена переменных повторяются',
+  'template.error.unnamed': 'У значения нет имени переменной',
+  'compose.section.message': 'Сообщение',
+  'compose.more': 'Дополнительно',
+  'class.TRANSACTIONAL.hint':
+    'Касается конкретного человека и его действий: заявка, заказ, доступ.',
+  'class.PLATFORM.hint': 'О работе самой платформы: релизы, работы, сбои.',
+  'class.MARKETING.hint': 'Новости и рассылки, от которых можно отказаться.',
+  'priority.NORMAL.hint': 'Обычная очередь доставки.',
+  'priority.HIGH.hint':
+    'Доставляется раньше остальных и помечается в ленте как «Важное».',
+  'priority.BULK.hint':
+    'Массовая рассылка: доставляется, когда очередь свободна.',
+  'announce.audience': 'Аудитория',
+  'announce.new': 'Новое объявление',
+  'announce.window.label': 'Показ',
+  'editor.toolbar': 'Форматирование',
+  'editor.heading': 'Заголовок',
+  'editor.bold': 'Жирный',
+  'editor.italic': 'Курсив',
+  'editor.underline': 'Подчёркнутый',
+  'editor.strike': 'Зачёркнутый',
+  'editor.bullets': 'Маркированный список',
+  'editor.numbers': 'Нумерованный список',
+  'editor.quote': 'Цитата',
+  'editor.link': 'Ссылка',
+  'editor.linkUrl': 'Адрес ссылки',
+  'editor.linkApply': 'Применить',
+  'editor.unlink': 'Убрать ссылку',
+  'editor.clear': 'Очистить форматирование',
+  'editor.visual': 'Текст',
+  'editor.htmlNote':
+    'Разрешены абзацы, заголовки, списки, ссылки, жирный и курсив — остальное будет убрано.',
 } as const;
 
 export const ADMIN_MESSAGES_EN: Record<keyof typeof ADMIN_MESSAGES_RU, string> =
@@ -267,10 +319,12 @@ export const ADMIN_MESSAGES_EN: Record<keyof typeof ADMIN_MESSAGES_RU, string> =
     'compose.section.delivery': 'How',
     'compose.section.schedule': 'When',
     'compose.channels': 'Channels',
-    'compose.channels.hint': 'Only channels the template has text for.',
+    'compose.channels.hint':
+      'Chat and webhook work only if they are enabled in the service.',
     'compose.channels.error': 'Choose at least one channel',
     'compose.category': 'Category',
-    'compose.category.hint': 'The service category code, e.g. preorder.',
+    'compose.category.hint':
+      'The category code the service files the notification under.',
     'compose.category.error.required': 'Enter a category',
     'compose.category.error.tooLong': 'At most 128 characters',
     'compose.class': 'Class',
@@ -279,7 +333,8 @@ export const ADMIN_MESSAGES_EN: Record<keyof typeof ADMIN_MESSAGES_RU, string> =
     'compose.when.at': 'Send at',
     'compose.when.error.invalid': 'Enter a date and time',
     'compose.when.error.past': 'This time has passed',
-    'compose.summary': 'Recipients: {recipients} · deliveries: {deliveries}',
+    'compose.summary':
+      '{recipients} recipients × {channels} channels = {deliveries} deliveries',
     'compose.submit': 'Send',
     'compose.submitScheduled': 'Schedule',
     'compose.sending': 'Sending…',
@@ -314,7 +369,7 @@ export const ADMIN_MESSAGES_EN: Record<keyof typeof ADMIN_MESSAGES_RU, string> =
     'preview.locale': 'Language',
     'preview.run': 'Show',
     'preview.refresh': 'Refresh',
-    'preview.empty': 'Choose a template to see the message as it will arrive.',
+    'preview.empty': 'The message will appear here as it will arrive.',
     'preview.idle':
       'The service renders the message as a send would and tells what data is missing.',
     'preview.subject': 'Subject',
@@ -436,4 +491,55 @@ export const ADMIN_MESSAGES_EN: Record<keyof typeof ADMIN_MESSAGES_RU, string> =
     'emailRun.stopConfirm':
       'Stop the run? Emails already created cannot be recalled.',
     'emailRun.stopping': 'Stop requested',
+    'message.mode.freeform': 'Own text',
+    'message.mode.template': 'Service template',
+    'message.unavailable':
+      'Own text is unavailable: the service has no free-form message template.',
+    'message.subject': 'Subject',
+    'message.subject.placeholder': 'e.g. Maintenance on 14 October',
+    'message.subject.tooLong': 'At most {max} characters',
+    'message.body': 'Text',
+    'message.body.hint':
+      'For email the kit builds the plain-text version itself.',
+    'message.body.placeholder': 'Write the message…',
+    'message.body.required': 'Write the message text',
+    'template.key': 'Template key',
+    'template.keyHint':
+      'A template key that exists in the service. Lower-case latin, digits, dot, hyphen.',
+    'template.variables': 'Template variables',
+    'template.variablesHint': 'Empty values are not sent',
+    'template.error.tooLong': 'At most 128 characters',
+    'template.error.duplicate': 'Variable names repeat',
+    'template.error.unnamed': 'A value has no variable name',
+    'compose.section.message': 'Message',
+    'compose.more': 'More',
+    'class.TRANSACTIONAL.hint':
+      'About one person and their actions: a request, an order, access.',
+    'class.PLATFORM.hint':
+      'About the platform itself: releases, maintenance, incidents.',
+    'class.MARKETING.hint': 'News and mailings people may opt out of.',
+    'priority.NORMAL.hint': 'The usual delivery queue.',
+    'priority.HIGH.hint':
+      'Delivered first and marked “Important” in the inbox.',
+    'priority.BULK.hint': 'A mass mailing: delivered when the queue is free.',
+    'announce.audience': 'Audience',
+    'announce.new': 'New announcement',
+    'announce.window.label': 'Shown',
+    'editor.toolbar': 'Formatting',
+    'editor.heading': 'Heading',
+    'editor.bold': 'Bold',
+    'editor.italic': 'Italic',
+    'editor.underline': 'Underline',
+    'editor.strike': 'Strikethrough',
+    'editor.bullets': 'Bulleted list',
+    'editor.numbers': 'Numbered list',
+    'editor.quote': 'Quote',
+    'editor.link': 'Link',
+    'editor.linkUrl': 'Link address',
+    'editor.linkApply': 'Apply',
+    'editor.unlink': 'Remove link',
+    'editor.clear': 'Clear formatting',
+    'editor.visual': 'Text',
+    'editor.htmlNote':
+      'Paragraphs, headings, lists, links, bold and italic are kept — everything else is removed.',
   };

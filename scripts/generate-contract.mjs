@@ -263,15 +263,7 @@ if (isMain) {
   const { mkdirSync } = await import('node:fs');
   const { execFileSync } = await import('node:child_process');
   mkdirSync(OUT_DIR, { recursive: true });
-  const { buildCatalog, renderCatalog } = await import(
-    './generate-templates.mjs'
-  );
-  const files = {
-    ...generate(readFileSync(CONTRACT, 'utf8')),
-    'templates.ts': renderCatalog(
-      buildCatalog(resolve(ROOT, 'contract/templates'))
-    ),
-  };
+  const files = generate(readFileSync(CONTRACT, 'utf8'));
   for (const [name, content] of Object.entries(files)) {
     writeFileSync(resolve(OUT_DIR, name), content, 'utf8');
   }

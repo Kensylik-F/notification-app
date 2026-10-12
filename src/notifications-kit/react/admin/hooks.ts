@@ -16,7 +16,6 @@ import {
   shouldRetry,
 } from '../../core';
 import type {
-  AnnouncementAdmin,
   DeliveryFilter,
   DeliveryResponse,
   NotificationRequestResponse,
@@ -204,61 +203,6 @@ export function useDeliveryCommands() {
 
 // ----------------------------------------------------------- announcements
 
-/** One announcement published from this browser tab, with what was sent:
- *  a correction must repeat the audience and the window unchanged. */
-export interface PublishedRecord {
-  announcement: AnnouncementAdmin;
-  request: PublishAnnouncementRequest;
-  corrections: number;
-}
-
-const STORAGE_KEY = 'notifications-kit.published.v1';
-
-function readStored(): PublishedRecord[] {
-  try {
-    const raw = globalThis.sessionStorage?.getItem(STORAGE_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? (parsed as PublishedRecord[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeStored(records: PublishedRecord[]) {
-  try {
-    globalThis.sessionStorage?.setItem(STORAGE_KEY, JSON.stringify(records));
-  } catch {
-    // Storage can be unavailable (private mode, quota); the list then lives
-    // in memory until the page is reloaded.
-  }
-}
-
-/**
- * The service has no list of published announcements, so the kit keeps the
- * ones published in this tab (in memory and in `sessionStorage`).
- */
-export function usePublishedAnnouncements() {
-  return useQuery({
-    queryKey: notificationKeys.published(),
-    queryFn: () => readStored(),
-    staleTime: Infinity,
-    gcTime: Infinity,
-    refetchOnWindowFocus: false,
-  });
-}
-
-function updatePublished(
-  client: QueryClient,
-  edit: (records: PublishedRecord[]) => PublishedRecord[]
-) {
-  const current =
-    client.getQueryData<PublishedRecord[]>(notificationKeys.published()) ??
-    readStored();
-  const next = edit(current);
-  writeStored(next);
-  client.setQueryData(notificationKeys.published(), next);
-}
-
 /** Not idempotent and never retried: a repeat would publish twice. */
 export function usePublishAnnouncement() {
   const { api } = useNotificationsContext();
@@ -267,19 +211,15 @@ export function usePublishAnnouncement() {
     mutationFn: (request: PublishAnnouncementRequest) =>
       api.announcements.publish(request),
     retry: false,
-    onSuccess: (announcement, request) => {
-      updatePublished(client, records => [
-        { announcement, request, corrections: 0 },
-        ...records.filter(r => r.announcement.id !== announcement.id),
-      ]);
-      // The publisher may be in the audience too.
+    // The publisher may be in the audience too.
+    onSuccess: () =>
       void client.invalidateQueries({
         queryKey: notificationKeys.announcements(),
-      });
-    },
+      }),
   });
 }
 
+/** Content only: the audience and the window go back unchanged. */
 export function useCorrectAnnouncement() {
   const { api } = useNotificationsContext();
   const client = useQueryClient();
@@ -292,20 +232,12 @@ export function useCorrectAnnouncement() {
       request: PublishAnnouncementRequest;
     }) => api.announcements.correct(id, request),
     retry: false,
-    onSuccess: (announcement, { id, request }) => {
-      updatePublished(client, records =>
-        records.map(r =>
-          r.announcement.id === id
-            ? {
-                announcement: { ...r.announcement, ...announcement },
-                request,
-                corrections: r.corrections + 1,
-              }
-            : r
-        )
-      );
+    onSuccess: (_, { id }) => {
       void client.invalidateQueries({
         queryKey: notificationKeys.announcements(),
+      });
+      void client.invalidateQueries({
+        queryKey: notificationKeys.announcement(id),
       });
     },
   });

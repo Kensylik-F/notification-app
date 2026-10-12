@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_RECIPIENTS,
   PublishAnnouncementRequestSchema,
-  SERVICE_TEMPLATES,
   SendNotificationRequestSchema,
   buildPublishRequest,
   buildSendRequest,
@@ -16,18 +15,21 @@ import {
   validatePublish,
   validateSend,
 } from './index';
-import type { PublishDraft, SendDraft } from './index';
+import type { MessageContent, PublishDraft, SendDraft } from './index';
 
 const NOW = Date.parse('2026-10-12T09:00:00Z');
-const welcome = SERVICE_TEMPLATES.find(t => t.key === 'welcome')!;
-const release = SERVICE_TEMPLATES.find(t => t.key === 'platform-release')!;
+const FREEFORM = 'custom-message';
+
+const freeform: MessageContent = {
+  mode: 'freeform',
+  subject: '  Плановые работы  ',
+  bodyHtml: '<p>Сервис <b>недоступен</b> с 22:00.</p>',
+  bodyText: 'Сервис недоступен с 22:00.',
+};
 
 function sendDraft(patch: Partial<SendDraft> = {}): SendDraft {
   return {
-    template: welcome,
-    customTemplateKey: '',
-    variables: { productName: 'Sber Data', gettingStartedLink: '  ' },
-    customVariables: [],
+    content: freeform,
     channels: ['EMAIL', 'IN_APP'],
     category: ' onboarding ',
     categoryClass: 'TRANSACTIONAL',
@@ -38,48 +40,76 @@ function sendDraft(patch: Partial<SendDraft> = {}): SendDraft {
   };
 }
 
-describe('catalogue', () => {
-  it('knows which templates fit an announcement', () => {
-    expect(release.announcement).toBe(true);
-    expect(welcome.announcement).toBe(false);
-    expect(SERVICE_TEMPLATES.filter(t => t.digest).map(t => t.key)).toEqual([
-      'activity-digest',
-    ]);
-    expect(welcome.variables).toEqual([
-      { name: 'productName', required: true },
-      { name: 'gettingStartedLink', required: false },
-    ]);
-  });
-});
-
 describe('send', () => {
-  it('builds a request the contract accepts', () => {
-    expect(validateSend(sendDraft(), NOW)).toEqual({});
-    const request = buildSendRequest(sendDraft());
+  it('sends free text through the free-form template', () => {
+    expect(
+      validateSend(sendDraft(), { freeformTemplateKey: FREEFORM, now: NOW })
+    ).toEqual({});
+    const request = buildSendRequest(sendDraft(), FREEFORM);
     expect(SendNotificationRequestSchema.parse(request)).toEqual(request);
     expect(request).toMatchObject({
-      templateKey: 'welcome',
+      templateKey: FREEFORM,
       category: 'onboarding',
-      // Blank optional values are left out rather than sent empty.
-      variables: { productName: 'Sber Data' },
+      variables: {
+        subject: 'Плановые работы',
+        bodyHtml: '<p>Сервис <b>недоступен</b> с 22:00.</p>',
+        bodyText: 'Сервис недоступен с 22:00.',
+      },
       recipients: [{ userId: 'u-42' }, { address: 'a@b.ru' }],
     });
     expect(request).not.toHaveProperty('scheduledAt');
   });
 
+  it('refuses free text when the deployment has no free-form template', () => {
+    expect(validateSend(sendDraft(), { now: NOW }).body).toBe('unavailable');
+  });
+
+  it('sends any template by key with its variables', () => {
+    const content: MessageContent = {
+      mode: 'template',
+      templateKey: 'Order.Status',
+      variables: [
+        { name: 'orderId', value: ' 17 ' },
+        { name: 'note', value: '' },
+      ],
+    };
+    expect(validateSend(sendDraft({ content }), { now: NOW }).templateKey).toBe(
+      'pattern'
+    );
+    const fixed = { ...content, templateKey: 'order.status' };
+    expect(validateSend(sendDraft({ content: fixed }), { now: NOW })).toEqual(
+      {}
+    );
+    expect(buildSendRequest(sendDraft({ content: fixed }))).toMatchObject({
+      templateKey: 'order.status',
+      variables: { orderId: '17' },
+    });
+    const twice = {
+      ...fixed,
+      variables: [
+        { name: 'a', value: '1' },
+        { name: 'a', value: '2' },
+      ],
+    };
+    expect(
+      validateSend(sendDraft({ content: twice }), { now: NOW }).variables
+    ).toBe('duplicate');
+  });
+
   it('reports what is wrong, by code', () => {
     const errors = validateSend(
       sendDraft({
-        variables: {},
+        content: { ...freeform, subject: ' ', bodyText: '' },
         channels: [],
         category: '',
         recipients: [],
         scheduledAt: '2026-10-12T08:00',
       }),
-      NOW
+      { freeformTemplateKey: FREEFORM, now: NOW }
     );
     expect(errors).toEqual({
-      variables: 'required',
+      subject: 'required',
+      body: 'required',
       channels: 'required',
       category: 'required',
       recipients: 'required',
@@ -89,24 +119,12 @@ describe('send', () => {
       { length: MAX_RECIPIENTS + 1 },
       (_, i) => recipientFromInput(`u-${i}`)!
     );
-    expect(validateSend(sendDraft({ recipients: many }), NOW).recipients).toBe(
-      'tooMany'
-    );
-  });
-
-  it('accepts a hand-typed key and its variables', () => {
-    const draft = sendDraft({
-      template: null,
-      customTemplateKey: 'Order.Status',
-      customVariables: [{ name: 'orderId', value: '17' }],
-    });
-    expect(validateSend(draft, NOW).template).toBe('pattern');
-    const fixed = { ...draft, customTemplateKey: 'order.status' };
-    expect(validateSend(fixed, NOW)).toEqual({});
-    expect(buildSendRequest(fixed).variables).toEqual({
-      orderId: '17',
-      productName: 'Sber Data',
-    });
+    expect(
+      validateSend(sendDraft({ recipients: many }), {
+        freeformTemplateKey: FREEFORM,
+        now: NOW,
+      }).recipients
+    ).toBe('tooMany');
   });
 });
 
@@ -115,18 +133,16 @@ describe('publish', () => {
     category: 'platform-release',
     audienceType: 'EVERYONE',
     audienceValue: 'ignored',
-    template: release,
-    customTemplateKey: '',
-    variables: { productName: 'Sber Data', version: '2.4' },
-    customVariables: [],
+    content: freeform,
     visibleFrom: null,
     visibleUntil: '2026-10-19T09:00:00Z',
     ...patch,
   });
+  const opts = { freeformTemplateKey: FREEFORM, now: NOW };
 
   it('builds a request the contract accepts', () => {
-    expect(validatePublish(draft(), { now: NOW })).toEqual({});
-    const request = buildPublishRequest(draft());
+    expect(validatePublish(draft(), opts)).toEqual({});
+    const request = buildPublishRequest(draft(), FREEFORM);
     expect(PublishAnnouncementRequestSchema.parse(request)).toEqual(request);
     expect(request).not.toHaveProperty('audienceValue');
     expect(request).not.toHaveProperty('visibleFrom');
@@ -134,23 +150,20 @@ describe('publish', () => {
 
   it('checks the audience and the window', () => {
     expect(
-      validatePublish(draft({ audienceType: 'ROLE', audienceValue: ' ' }), {
-        now: NOW,
-      }).audience
+      validatePublish(draft({ audienceType: 'ROLE', audienceValue: ' ' }), opts)
+        .audience
     ).toBe('required');
     expect(
-      validatePublish(draft({ visibleUntil: '2026-10-12T08:00:00Z' }), {
-        now: NOW,
-      }).visibleUntil
+      validatePublish(draft({ visibleUntil: '2026-10-12T08:00:00Z' }), opts)
+        .visibleUntil
     ).toBe('beforeStart');
     expect(
-      validatePublish(draft({ visibleUntil: '2027-02-01T00:00:00Z' }), {
-        now: NOW,
-      }).visibleUntil
+      validatePublish(draft({ visibleUntil: '2027-02-01T00:00:00Z' }), opts)
+        .visibleUntil
     ).toBe('tooLong');
     expect(
       validatePublish(draft({ visibleUntil: '2027-02-01T00:00:00Z' }), {
-        now: NOW,
+        ...opts,
         maxVisibilityDays: 180,
       })
     ).toEqual({});

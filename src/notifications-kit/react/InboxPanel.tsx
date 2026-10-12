@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { isNotificationsError } from '../core';
 import type { InboxEntry } from '../core';
 import { useNotificationsContext } from './context';
 import {
+  useDismissAll,
   useInboxCommands,
   useInboxDetails,
   useInboxList,
@@ -68,6 +69,109 @@ export function MarkAllReadButton() {
     >
       {t('inbox.markAllRead')}
     </Button>
+  );
+}
+
+/**
+ * "Dismiss all", with a confirmation and progress. The service has no bulk
+ * dismiss: the kit dismisses item by item (see `useDismissAll`).
+ */
+export function DismissAllButton() {
+  const { t } = useNotificationsContext();
+  const list = useInboxList({});
+  const { progress, start, stop, reset } = useDismissAll();
+  const [confirming, setConfirming] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const running = progress?.running ?? false;
+
+  useEffect(() => {
+    if (!confirming) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node))
+        setConfirming(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setConfirming(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [confirming]);
+
+  // The finished result stays for a moment, then the button comes back.
+  useEffect(() => {
+    if (!progress || progress.running) return;
+    const timer = setTimeout(reset, 4000);
+    return () => clearTimeout(timer);
+  }, [progress, reset]);
+
+  if (progress) {
+    const of =
+      progress.total !== null
+        ? t('inbox.dismissAll.progress', {
+            done: progress.done,
+            total: progress.total,
+          })
+        : t('inbox.dismissAll.progressNoTotal', { done: progress.done });
+    return (
+      <div className={cx(styles.root, styles.dismissAll)} role='status'>
+        {running && <Spinner label={of} />}
+        <span className={styles.dismissAllText}>
+          {running ? of : t('inbox.dismissAll.done', { done: progress.done })}
+          {progress.failed > 0 &&
+            ` · ${t('inbox.dismissAll.failed', { failed: progress.failed })}`}
+        </span>
+        {running && (
+          <Button variant='ghost' onClick={stop}>
+            {t('inbox.dismissAll.stop')}
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  const nothing = list.entries.length === 0;
+  return (
+    <div ref={rootRef} className={cx(styles.root, styles.confirmAnchor)}>
+      <Button
+        variant='ghost'
+        icon='close'
+        disabled={nothing}
+        aria-expanded={confirming}
+        onClick={() => setConfirming(v => !v)}
+      >
+        {t('inbox.dismissAll')}
+      </Button>
+      {confirming && (
+        <div className={styles.confirmPop} role='dialog'>
+          <strong>
+            {list.total !== null
+              ? t('inbox.dismissAll.confirmCount', { count: list.total })
+              : t('inbox.dismissAll.confirm')}
+          </strong>
+          <span className={styles.stateNote}>
+            {t('inbox.dismissAll.confirmNote')}
+          </span>
+          <div className={styles.confirmActions}>
+            <Button onClick={() => setConfirming(false)}>
+              {t('inbox.dismissAll.cancel')}
+            </Button>
+            <Button
+              variant='primary'
+              onClick={() => {
+                setConfirming(false);
+                void start();
+              }}
+            >
+              {t('inbox.dismissAll.ok')}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -248,7 +352,10 @@ export function InboxPanel({
       {showBar && (
         <div className={styles.panelBar}>
           <InboxTabs unreadOnly={value} onChange={change} />
-          <MarkAllReadButton />
+          <div className={styles.panelActions}>
+            <MarkAllReadButton />
+            <DismissAllButton />
+          </div>
         </div>
       )}
       <InboxList unreadOnly={value} {...listProps} />

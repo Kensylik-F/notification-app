@@ -14,8 +14,6 @@ import type {
 } from './generated/schemas';
 import { odata } from './odata';
 import type { ODataExpression } from './odata';
-import { missingVariables, toVariables } from './templates';
-import type { TemplateDescriptor } from './templates';
 
 export type SendCategoryClass = SendNotificationRequest['categoryClass'];
 export type SendPriority = SendNotificationRequest['priority'];
@@ -26,6 +24,14 @@ export type DeliveryStatus = NonNullable<DeliveryResponse['status']>;
 export const MAX_RECIPIENTS = 500;
 /** `ludwig.notification.announcements.max-visibility-window`. */
 export const DEFAULT_MAX_VISIBILITY_DAYS = 90;
+/** The order channels are offered in, everywhere. */
+export const CHANNEL_ORDER: readonly Channel[] = [
+  'EMAIL',
+  'IN_APP',
+  'CHAT',
+  'WEBHOOK',
+];
+
 /** Template key pattern from the contract. */
 export const TEMPLATE_KEY_PATTERN = /^[a-z0-9][a-z0-9._-]*$/;
 
@@ -61,71 +67,121 @@ export function toRecipientDto(draft: RecipientDraft): RecipientDto {
     : { address: draft.address };
 }
 
-// ---------------------------------------------------------------------- send
+// ------------------------------------------------------------------ content
 
-export interface SendDraft {
-  template: TemplateDescriptor | null;
-  /** Used when the key is typed by hand rather than picked from the catalogue. */
-  customTemplateKey: string;
-  variables: Record<string, string>;
-  /** Extra name/value pairs for a hand-typed template. */
-  customVariables: VariablePair[];
-  channels: Channel[];
-  category: string;
-  categoryClass: SendCategoryClass;
-  priority: SendPriority;
-  recipients: RecipientDraft[];
-  /** `null` — send now. */
-  scheduledAt: string | null;
-}
-
-export type SendField =
-  | 'template'
-  | 'variables'
-  | 'channels'
-  | 'category'
-  | 'recipients'
-  | 'scheduledAt';
-
-export type SendErrors = Partial<Record<SendField, string>>;
-
-export function templateKeyOf(draft: {
-  template: TemplateDescriptor | null;
-  customTemplateKey: string;
-}): string {
-  return draft.template?.key ?? draft.customTemplateKey.trim();
-}
+/**
+ * What the message says. The contract has no body field: a send and a
+ * publish carry a template key and its variables, nothing else.
+ *
+ * - `freeform` - text written in the editor, sent through the deployment's
+ *   free-form template (`subject`, `bodyHtml`, `bodyText`; see
+ *   service-templates/ in the kit's repository). Available only when the host
+ *   names that template's key.
+ * - `template` - any template the deployment has, by key, with variables
+ *   typed as name/value pairs.
+ */
+export type MessageContent =
+  | {
+      mode: 'freeform';
+      subject: string;
+      /** Already cleaned by the editor. */
+      bodyHtml: string;
+      /** Plain-text twin of `bodyHtml`. */
+      bodyText: string;
+    }
+  | { mode: 'template'; templateKey: string; variables: VariablePair[] };
 
 export interface VariablePair {
   name: string;
   value: string;
 }
 
-/** Catalogue variables win over a hand-typed pair with the same name. */
-export function variablesOf(draft: {
-  variables: Record<string, string>;
-  customVariables?: readonly VariablePair[];
-}): Record<string, string> {
-  const custom: Record<string, string> = {};
-  for (const pair of draft.customVariables ?? []) {
-    if (pair.name.trim()) custom[pair.name.trim()] = pair.value;
+/** Subject length the editor allows; the contract does not limit variables. */
+export const MAX_SUBJECT_LENGTH = 200;
+
+export type ContentErrors = Partial<
+  Record<'subject' | 'body' | 'templateKey' | 'variables', string>
+>;
+
+export function validateContent(
+  content: MessageContent,
+  freeformTemplateKey: string | undefined
+): ContentErrors {
+  const errors: ContentErrors = {};
+  if (content.mode === 'freeform') {
+    if (!freeformTemplateKey) errors.body = 'unavailable';
+    if (!content.subject.trim()) errors.subject = 'required';
+    else if (content.subject.trim().length > MAX_SUBJECT_LENGTH) {
+      errors.subject = 'tooLong';
+    }
+    if (!content.bodyText.trim()) errors.body ??= 'required';
+    return errors;
   }
-  return toVariables({ ...custom, ...draft.variables });
+  const key = content.templateKey.trim();
+  if (!key) errors.templateKey = 'required';
+  else if (key.length > 128) errors.templateKey = 'tooLong';
+  else if (!TEMPLATE_KEY_PATTERN.test(key)) errors.templateKey = 'pattern';
+  const names = content.variables.map(pair => pair.name.trim()).filter(Boolean);
+  if (new Set(names).size !== names.length) errors.variables = 'duplicate';
+  else if (content.variables.some(p => !p.name.trim() && p.value.trim())) {
+    errors.variables = 'unnamed';
+  }
+  return errors;
 }
 
-/** Error codes, not text: the UI owns the wording. */
-export function validateSend(draft: SendDraft, now = Date.now()): SendErrors {
-  const errors: SendErrors = {};
-  const key = templateKeyOf(draft);
-  if (!key) errors.template = 'required';
-  else if (!TEMPLATE_KEY_PATTERN.test(key)) errors.template = 'pattern';
-
-  if (
-    draft.template &&
-    missingVariables(draft.template, draft.variables).length
-  ) {
-    errors.variables = 'required';
+/** Template key and variables for the request. Empty values are left out:
+ *  the renderer treats an absent optional variable correctly, an empty
+ *  string it would print. */
+export function contentToTemplate(
+  content: MessageContent,
+  freeformTemplateKey: string | undefined
+): { templateKey: string; variables: Record<string, string> } {
+  if (content.mode === 'freeform') {
+    return {
+      templateKey: freeformTemplateKey ?? '',
+      variables: {
+        subject: content.subject.trim(),
+        bodyHtml: content.bodyHtml,
+        bodyText: content.bodyText.trim(),
+      },
+    };
   }
+  const variables: Record<string, string> = {};
+  for (const pair of content.variables) {
+    const name = pair.name.trim();
+    if (name && pair.value.trim()) variables[name] = pair.value.trim();
+  }
+  return { templateKey: content.templateKey.trim(), variables };
+}
+
+// ---------------------------------------------------------------------- send
+
+export interface SendDraft {
+  content: MessageContent;
+  channels: Channel[];
+  category: string;
+  categoryClass: SendCategoryClass;
+  priority: SendPriority;
+  recipients: RecipientDraft[];
+  /** `null` - send now. */
+  scheduledAt: string | null;
+}
+
+export type SendErrors = ContentErrors &
+  Partial<
+    Record<'channels' | 'category' | 'recipients' | 'scheduledAt', string>
+  >;
+
+/** Error codes, not text: the UI owns the wording. */
+export function validateSend(
+  draft: SendDraft,
+  options: { freeformTemplateKey?: string; now?: number } = {}
+): SendErrors {
+  const now = options.now ?? Date.now();
+  const errors: SendErrors = validateContent(
+    draft.content,
+    options.freeformTemplateKey
+  );
   if (draft.channels.length === 0) errors.channels = 'required';
   if (!draft.category.trim()) errors.category = 'required';
   else if (draft.category.trim().length > 128) errors.category = 'tooLong';
@@ -142,10 +198,12 @@ export function validateSend(draft: SendDraft, now = Date.now()): SendErrors {
   return errors;
 }
 
-export function buildSendRequest(draft: SendDraft): SendNotificationRequest {
+export function buildSendRequest(
+  draft: SendDraft,
+  freeformTemplateKey?: string
+): SendNotificationRequest {
   return {
-    templateKey: templateKeyOf(draft),
-    variables: variablesOf(draft),
+    ...contentToTemplate(draft.content, freeformTemplateKey),
     channels: [...new Set(draft.channels)],
     category: draft.category.trim(),
     categoryClass: draft.categoryClass,
@@ -163,45 +221,36 @@ export interface PublishDraft {
   category: string;
   audienceType: AudienceType;
   audienceValue: string;
-  template: TemplateDescriptor | null;
-  customTemplateKey: string;
-  variables: Record<string, string>;
-  customVariables: VariablePair[];
-  /** `null` — visible from the moment of publishing. */
+  content: MessageContent;
+  /** `null` - visible from the moment of publishing. */
   visibleFrom: string | null;
   visibleUntil: string;
 }
 
-export type PublishField =
-  | 'category'
-  | 'audience'
-  | 'template'
-  | 'variables'
-  | 'visibleFrom'
-  | 'visibleUntil';
-
-export type PublishErrors = Partial<Record<PublishField, string>>;
+export type PublishErrors = ContentErrors &
+  Partial<
+    Record<'category' | 'audience' | 'visibleFrom' | 'visibleUntil', string>
+  >;
 
 export function validatePublish(
   draft: PublishDraft,
-  options: { maxVisibilityDays?: number; now?: number } = {}
+  options: {
+    freeformTemplateKey?: string;
+    maxVisibilityDays?: number;
+    now?: number;
+  } = {}
 ): PublishErrors {
   const now = options.now ?? Date.now();
   const maxDays = options.maxVisibilityDays ?? DEFAULT_MAX_VISIBILITY_DAYS;
-  const errors: PublishErrors = {};
+  const errors: PublishErrors = validateContent(
+    draft.content,
+    options.freeformTemplateKey
+  );
 
   if (!draft.category.trim()) errors.category = 'required';
+  else if (draft.category.trim().length > 255) errors.category = 'tooLong';
   if (draft.audienceType === 'ROLE' && !draft.audienceValue.trim()) {
     errors.audience = 'required';
-  }
-  const key = templateKeyOf(draft);
-  if (!key) errors.template = 'required';
-  else if (!TEMPLATE_KEY_PATTERN.test(key)) errors.template = 'pattern';
-  if (
-    draft.template &&
-    missingVariables(draft.template, draft.variables).length
-  ) {
-    errors.variables = 'required';
   }
 
   const from = draft.visibleFrom === null ? now : Date.parse(draft.visibleFrom);
@@ -215,7 +264,8 @@ export function validatePublish(
 }
 
 export function buildPublishRequest(
-  draft: PublishDraft
+  draft: PublishDraft,
+  freeformTemplateKey?: string
 ): PublishAnnouncementRequest {
   return {
     category: draft.category.trim(),
@@ -223,8 +273,7 @@ export function buildPublishRequest(
     ...(draft.audienceType === 'ROLE'
       ? { audienceValue: draft.audienceValue.trim() }
       : {}),
-    templateKey: templateKeyOf(draft),
-    variables: variablesOf(draft),
+    ...contentToTemplate(draft.content, freeformTemplateKey),
     ...(draft.visibleFrom !== null
       ? { visibleFrom: new Date(draft.visibleFrom).toISOString() }
       : {}),

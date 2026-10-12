@@ -1,6 +1,6 @@
 // Renders the demo in Chromium and saves screenshots of the main states to
 // ./shots. A visual check for the maintainer; not part of the test suite.
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
@@ -8,6 +8,7 @@ import { createServer } from 'vite';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, 'shots');
+rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 
 const server = await createServer({
@@ -22,8 +23,9 @@ const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || undefined,
 });
 const errors = [];
+const only = process.argv[2];
 
-async function open(query = '', viewport = { width: 1366, height: 800 }) {
+async function open(query = '', viewport = { width: 1366, height: 860 }) {
   const context = await browser.newContext({ viewport, locale: 'ru-RU' });
   const page = await context.newPage();
   page.on('console', m => m.type() === 'error' && errors.push(m.text()));
@@ -32,213 +34,232 @@ async function open(query = '', viewport = { width: 1366, height: 800 }) {
   await page.waitForSelector('[role="alertdialog"]');
   return page;
 }
-const shot = (page, name, options = {}) =>
-  page.screenshot({ path: resolve(OUT, `${name}.png`), ...options });
+const shot = (page, name) =>
+  page.screenshot({ path: resolve(OUT, `${name}.png`) });
+const wait = (page, ms) => page.waitForTimeout(ms);
 const acknowledge = async page => {
   await page.getByRole('button', { name: 'Понятно' }).click();
-  await page.waitForTimeout(400);
+  await wait(page, 400);
 };
-const closeOverlays = async page => {
-  for (const button of await page
-    .locator('[class*="overlay"]')
-    .getByRole('button', { name: 'Закрыть' })
-    .all()) {
-    await button.click().catch(() => {});
-  }
-  await page.waitForTimeout(300);
-};
+const quietOverlays = page =>
+  page.addStyleTag({ content: '[class*="overlay"]{display:none!important}' });
+const scrollMain = (page, y) =>
+  page.locator('.main').evaluate((el, to) => el.scrollTo(0, to), y);
+const run = name => !only || name.startsWith(only);
 
 // ---------------------------------------------------------------- inbox
-{
+if (run('inbox')) {
   const page = await open();
-  await page.waitForTimeout(600);
-  await shot(page, '01-modal-toast-corner');
+  await wait(page, 700);
+  await shot(page, '01-modal');
   await acknowledge(page);
-  await page.waitForTimeout(500);
-  await shot(page, '02-list');
+  await wait(page, 500);
+  await shot(page, '02-list-and-deck');
+  await page.locator('[class*="deck"][role="button"]').click();
+  await wait(page, 500);
+  await shot(page, '03-deck-expanded');
+  await page.keyboard.press('Escape');
   await page
     .getByRole('button', { name: /Уведомления, непрочитанных/ })
     .click();
-  await page.waitForTimeout(700);
-  await shot(page, '03-bell-open');
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: /Нужна информация по предзаказу/ })
-    .click();
-  await page.waitForTimeout(500);
-  await shot(page, '04-bell-row-expanded');
+  await wait(page, 600);
+  await shot(page, '04-bell');
   await page.keyboard.press('Escape');
-  await closeOverlays(page);
+  await quietOverlays(page);
   await page
     .locator('.main')
-    .getByRole('button', { name: /Выгрузка готова/ })
+    .getByRole('button', { name: /Нужна информация по предзаказу/ })
     .first()
     .click();
-  await page.waitForTimeout(600);
-  await shot(page, '05-list-row-expanded');
-  await page.getByRole('tab', { name: /Непрочитанные/ }).click();
-  await page.waitForTimeout(600);
-  await shot(page, '06-unread-tab');
-  await page.getByRole('tab', { name: 'Все' }).click();
-  await page.getByRole('button', { name: 'Показать ещё' }).click();
-  await page.waitForTimeout(700);
-  await page.locator('.main').evaluate(el => el.scrollTo(0, el.scrollHeight));
-  await page.waitForTimeout(200);
-  await shot(page, '07-load-more-bottom');
+  await wait(page, 900);
+  await shot(page, '05-row-html');
+  await page.getByRole('button', { name: 'Закрыть все' }).click();
+  await wait(page, 300);
+  await shot(page, '06-dismiss-all-confirm');
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Закрыть все' })
+    .click();
+  await wait(page, 400);
+  await shot(page, '07-dismiss-all-progress');
+  await wait(page, 6000);
+  await shot(page, '08-dismiss-all-done');
   await page.context().close();
 }
-{
-  const page = await open('?item=00000000-0000-4000-8000-000000000002');
+if (run('inbox')) {
+  const page = await open('?item=00000000-0000-4000-8000-000000000001');
   await acknowledge(page);
-  await closeOverlays(page);
-  await page.waitForTimeout(500);
-  await shot(page, '08-item-page');
+  await quietOverlays(page);
+  await wait(page, 800);
+  await shot(page, '09-item-page-html');
+  await page.context().close();
+}
+
+// -------------------------------------------------------- announcements
+if (run('feed')) {
+  const page = await open('?feed=announcements');
+  await acknowledge(page);
+  await quietOverlays(page);
+  await wait(page, 500);
+  await page
+    .locator('.main')
+    .getByRole('button', { name: /Выгрузки стали быстрее/ })
+    .click();
+  await wait(page, 700);
+  await shot(page, '10-feed-active');
+  await page.locator('.main').getByRole('button', { name: 'Закрыть' }).click();
+  await wait(page, 500);
+  await page.getByRole('tab', { name: 'Закрытые' }).click();
+  await wait(page, 400);
+  await page
+    .locator('.main')
+    .getByRole('button', { name: /Выгрузки стали быстрее/ })
+    .click();
+  await wait(page, 700);
+  await shot(page, '11-feed-dismissed');
   await page.context().close();
 }
 
 // -------------------------------------------------------------- compose
-{
+if (run('compose')) {
   const page = await open('?view=compose');
   await acknowledge(page);
-  await closeOverlays(page);
-  await shot(page, '10-compose-empty');
+  await quietOverlays(page);
+  await shot(page, '20-compose-empty');
   await page.getByRole('button', { name: 'Отправить' }).click();
-  await page.waitForTimeout(200);
-  await shot(page, '11-compose-errors');
-
-  await page
-    .getByLabel('Шаблон', { exact: false })
-    .first()
-    .selectOption('welcome');
-  await page.getByRole('button', { name: 'Показать' }).click();
-  await page.waitForTimeout(600);
-  await shot(page, '12-compose-preview-missing-variable');
-
-  await page.getByLabel('Продукт').fill('Sber Data');
+  await wait(page, 200);
+  await shot(page, '21-compose-errors');
+  await scrollMain(page, 0);
+  await page.getByLabel('Тема').fill('Плановые работы 14 октября');
+  const editor = page.getByRole('textbox', { name: 'Текст' });
+  await editor.click();
+  await page.keyboard.type('В ночь на 14 октября сервис будет ');
+  await page.keyboard.press('Control+b');
+  await page.keyboard.type('недоступен');
+  await page.keyboard.press('Control+b');
+  await page.keyboard.type(' с 00:00 до 06:00.');
+  await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: 'Маркированный список' }).click();
+  await page.keyboard.type('Сохраните черновики заранее');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Выгрузки, начатые до 00:00, завершатся');
+  await wait(page, 1400);
+  await shot(page, '22-compose-editor-preview');
   const recipients = page.getByLabel('Получатели');
   await recipients.fill('Иван');
-  await page.waitForTimeout(700);
-  await shot(page, '13-compose-recipient-search');
+  await wait(page, 700);
   await recipients.press('Enter');
   await recipients.fill('bad.mailbox@sber.ru');
   await recipients.press('Enter');
-  await recipients.fill('u-2001');
-  await recipients.press('Enter');
-  const form = page.locator('form');
-  await form.getByText('Почта', { exact: true }).click();
-  await form.getByText('В приложении', { exact: true }).click();
-  await page.getByLabel('Категория').fill('account');
-  await page.waitForTimeout(1000);
-  await shot(page, '14-compose-filled', { fullPage: false });
-  await page.locator('.main').evaluate(el => el.scrollTo(0, el.scrollHeight));
-  await page.waitForTimeout(200);
-  await shot(page, '15-compose-filled-bottom');
+  await page.locator('form').getByText('Почта', { exact: true }).click();
+  await page.getByRole('combobox', { name: 'Категория' }).click();
+  await wait(page, 300);
+  await shot(page, '23-compose-category');
+  await page.getByRole('option', { name: /Учётная запись/ }).click();
+  await page.getByText('Дополнительно').click();
+  await wait(page, 300);
+  await scrollMain(page, 2000);
+  await wait(page, 300);
+  await shot(page, '24-compose-more');
+  await page.getByRole('combobox', { name: 'Класс' }).click();
+  await wait(page, 200);
+  await shot(page, '25-compose-class-dropdown');
+  await page.keyboard.press('Escape');
+  await page.getByText('HTML', { exact: true }).click();
+  await scrollMain(page, 0);
+  await wait(page, 300);
+  await shot(page, '26-compose-html-tab');
   await page.getByRole('button', { name: 'Отправить' }).click();
-  await page.waitForTimeout(7500);
-  await shot(page, '16-send-result');
-  await page
-    .getByRole('button', { name: 'Открыть в истории доставок' })
-    .click();
-  await page.waitForTimeout(800);
-  await shot(page, '17-log-by-request');
+  await wait(page, 7000);
+  await shot(page, '27-send-result');
   await page.context().close();
 }
 
 // ------------------------------------------------------------------ log
-{
+if (run('log')) {
   const page = await open('?view=log');
   await acknowledge(page);
-  await closeOverlays(page);
-  await page.waitForTimeout(500);
-  await shot(page, '20-log');
-  await page.getByText('Не доставлена', { exact: true }).last().click();
-  await page.waitForTimeout(400);
+  await quietOverlays(page);
+  await wait(page, 500);
+  await page.getByRole('combobox', { name: 'Канал' }).click();
+  await wait(page, 200);
+  await shot(page, '30-log-channel-dropdown');
+  await page.keyboard.press('Escape');
   await page
     .locator('tbody tr')
     .filter({ hasText: 'Не доставлена' })
     .first()
     .click();
-  await page.waitForTimeout(700);
-  await shot(page, '21-log-dead-expanded');
-  await page.getByRole('button', { name: 'Показать текст' }).click();
-  await page.waitForTimeout(600);
-  await shot(page, '22-log-content');
+  await wait(page, 700);
+  await shot(page, '31-log-dead');
   await page.context().close();
 }
 
 // ------------------------------------------------------------- announce
-{
+if (run('announce')) {
   const page = await open('?view=announce');
   await acknowledge(page);
-  await closeOverlays(page);
-  await shot(page, '30-announce-empty');
-  await page.getByLabel('Категория').selectOption('platform-incident');
-  await page.getByLabel('Шаблон').selectOption('platform-release');
-  await page.getByLabel('Продукт').fill('Sber Data');
-  await page.getByLabel('Версия').fill('2.4');
-  await page.getByRole('button', { name: 'Показать' }).click();
-  await page.waitForTimeout(800);
-  await shot(page, '31-announce-filled');
+  await quietOverlays(page);
+  await shot(page, '40-announce-empty');
+  await page.getByLabel('Тема').fill('Плановые работы сегодня');
+  await page.getByRole('textbox', { name: 'Текст' }).click();
+  await page.keyboard.type('С 22:00 до 23:00 сервис будет недоступен.');
+  await page.getByRole('combobox', { name: 'Категория' }).click();
+  await page.getByRole('option', { name: /Работы и сбои/ }).click();
+  await wait(page, 1200);
+  await shot(page, '41-announce-filled');
   await page.getByRole('button', { name: 'Опубликовать' }).click();
-  await page.waitForTimeout(300);
-  await page.locator('.main').evaluate(el => el.scrollTo(0, el.scrollHeight));
-  await shot(page, '32-announce-confirm');
+  await wait(page, 300);
+  await scrollMain(page, 3000);
+  await shot(page, '42-announce-confirm');
   await page
     .getByRole('alertdialog')
     .getByRole('button', { name: 'Опубликовать' })
     .click();
-  await page.waitForTimeout(1500);
+  await wait(page, 2500);
   // The publisher is in the audience: the incident shows up as a modal.
-  await shot(page, '33a-announce-published-modal');
+  await shot(page, '43a-announce-modal-for-publisher');
   await acknowledge(page);
-  await page.waitForTimeout(1500);
-  await page.locator('.main').evaluate(el => el.scrollTo(0, el.scrollHeight));
-  await page.waitForTimeout(200);
-  await shot(page, '33-announce-published-run');
+  await shot(page, '43-announce-result');
   await page.getByRole('button', { name: 'Исправить текст' }).click();
-  await page.waitForTimeout(400);
-  await page.locator('.main').evaluate(el => el.scrollTo(0, el.scrollHeight));
-  await shot(page, '34-announce-correction');
+  await wait(page, 1200);
+  await shot(page, '44-announce-correction');
   await page.context().close();
 }
 
 // ---------------------------------------------------------- dark, narrow
-{
+if (run('dark')) {
+  const page = await open('?theme=dark');
+  await acknowledge(page);
+  await wait(page, 500);
+  await shot(page, '50-dark-list-deck');
+  await page.context().close();
+}
+if (run('dark')) {
   const page = await open('?theme=dark&view=compose');
   await acknowledge(page);
-  await closeOverlays(page);
-  await page.getByLabel('Шаблон').first().selectOption('platform-release');
-  await page.getByRole('button', { name: 'Показать' }).click();
-  await page.waitForTimeout(700);
-  await shot(page, '40-dark-compose');
-  await page
-    .getByRole('button', { name: /Уведомления, непрочитанных/ })
-    .click();
-  await page.waitForTimeout(700);
-  await shot(page, '41-dark-bell');
+  await quietOverlays(page);
+  await page.getByLabel('Тема').fill('Новая версия');
+  await page.getByRole('textbox', { name: 'Текст' }).click();
+  await page.keyboard.type('Вышла версия 2.4: ');
+  await page.getByRole('button', { name: 'Жирный' }).click();
+  await page.keyboard.type('предзаказ данных');
+  await wait(page, 1400);
+  await shot(page, '51-dark-compose');
   await page.context().close();
 }
-{
-  const page = await open('?theme=dark&view=log');
+if (run('narrow')) {
+  const page = await open('?view=compose', { width: 420, height: 860 });
   await acknowledge(page);
-  await closeOverlays(page);
-  await page.locator('tbody tr').first().click();
-  await page.waitForTimeout(700);
-  await shot(page, '42-dark-log');
+  await quietOverlays(page);
+  await shot(page, '60-narrow-compose');
   await page.context().close();
 }
-{
-  const page = await open('', { width: 420, height: 800 });
+if (run('narrow')) {
+  const page = await open('', { width: 420, height: 860 });
   await acknowledge(page);
-  await page.waitForTimeout(500);
-  await shot(page, '50-narrow-list');
-  await page.context().close();
-}
-{
-  const page = await open('?view=compose', { width: 420, height: 800 });
-  await acknowledge(page);
-  await closeOverlays(page);
-  await shot(page, '51-narrow-compose');
+  await wait(page, 500);
+  await shot(page, '61-narrow-deck');
   await page.context().close();
 }
 

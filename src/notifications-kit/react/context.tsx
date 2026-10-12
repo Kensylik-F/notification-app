@@ -74,10 +74,12 @@ export interface AdminOptions {
     query: string,
     signal: AbortSignal
   ) => Promise<RecipientDraft[]>;
-  /** Human names for template keys (the catalogue has keys only). */
-  templateLabels?: Readonly<Record<string, string>>;
-  /** Human names for template variables, by variable name. */
-  variableLabels?: Readonly<Record<string, string>>;
+  /**
+   * Key of the deployment's free-form template (`subject`, `bodyHtml`,
+   * `bodyText`), e.g. `'custom-message'` from service-templates/. With it the
+   * forms offer a text editor; without it only "template by key".
+   */
+  freeformTemplateKey?: string;
   /** The service's `announcements.max-visibility-window`. Default: 90. */
   maxVisibilityDays?: number;
   /** Default: everything allowed, and the service decides. */
@@ -88,8 +90,7 @@ export interface ResolvedAdminOptions {
   categories: readonly AdminCategory[];
   roles: readonly AdminRole[];
   searchRecipients: AdminOptions['searchRecipients'];
-  templateLabels: Readonly<Record<string, string>>;
-  variableLabels: Readonly<Record<string, string>>;
+  freeformTemplateKey: string | undefined;
   maxVisibilityDays: number;
   permissions: NotificationPermissions;
 }
@@ -134,6 +135,12 @@ export interface NotificationsProviderProps {
   onError?: (error: unknown) => void;
   /** Settings of the administration components (0.2). */
   admin?: AdminOptions;
+  /**
+   * Separates what the kit keeps in this browser (the history of dismissed
+   * announcements) between people sharing it - pass the user's id.
+   * Default: `'default'`.
+   */
+  storageScope?: string;
   children: ReactNode;
 }
 
@@ -151,6 +158,7 @@ export interface NotificationsContextValue {
     | undefined;
   onError: (error: unknown) => void;
   admin: ResolvedAdminOptions;
+  storageScope: string;
 }
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(
@@ -160,7 +168,6 @@ const NotificationsContext = createContext<NotificationsContextValue | null>(
 const noDescription = () => undefined;
 const ignore = () => undefined;
 const NONE: readonly never[] = [];
-const NO_LABELS: Readonly<Record<string, string>> = {};
 
 function resolveAdmin(admin: AdminOptions | undefined): ResolvedAdminOptions {
   const p = admin?.permissions ?? {};
@@ -168,8 +175,7 @@ function resolveAdmin(admin: AdminOptions | undefined): ResolvedAdminOptions {
     categories: admin?.categories ?? NONE,
     roles: admin?.roles ?? NONE,
     searchRecipients: admin?.searchRecipients,
-    templateLabels: admin?.templateLabels ?? NO_LABELS,
-    variableLabels: admin?.variableLabels ?? NO_LABELS,
+    freeformTemplateKey: admin?.freeformTemplateKey?.trim() || undefined,
     maxVisibilityDays: admin?.maxVisibilityDays ?? DEFAULT_MAX_VISIBILITY_DAYS,
     permissions: {
       send: p.send ?? true,
@@ -194,6 +200,7 @@ export function NotificationsProvider({
   renderHtml,
   onError = ignore,
   admin,
+  storageScope = 'default',
   children,
 }: NotificationsProviderProps) {
   const resolvedAdmin = useMemo(() => resolveAdmin(admin), [admin]);
@@ -213,6 +220,7 @@ export function NotificationsProvider({
       renderHtml,
       onError,
       admin: resolvedAdmin,
+      storageScope,
     }),
     [
       api,
@@ -228,6 +236,7 @@ export function NotificationsProvider({
       renderHtml,
       onError,
       resolvedAdmin,
+      storageScope,
     ]
   );
 

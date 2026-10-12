@@ -38,9 +38,8 @@ npm run shots      # снимки состояний демо в ./shots
 ## Строгость к контракту
 
 - Схемы и таблица операций (`core/generated`) собираются скриптом из
-  `contract/notification-service.openapi.yaml`, каталог шаблонов — из
-  `contract/templates`. Руками они не пишутся.
-- Тесты `tests/contract-drift.test.ts` и `tests/templates.test.ts` падают, если сгенерированные файлы
+  `contract/notification-service.openapi.yaml`. Руками они не пишутся.
+- Тест `tests/contract-drift.test.ts` падает, если сгенерированные файлы
   разошлись с документом или в таблице операций есть что-то, чего нет в
   документе (и наоборот).
 - Пути, параметры и тела запросов берутся только из этой таблицы.

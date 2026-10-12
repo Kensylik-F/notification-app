@@ -6,14 +6,15 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { KeyboardEvent, ReactNode } from 'react';
+import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { AnnouncementEntry } from '../core';
 import { useNotificationsContext } from './context';
 import { useAnnouncements, useDismissAnnouncement } from './hooks';
 import { planAnnouncements } from './presentation';
-import { Button, Icon, IconButton, cx } from './primitives';
+import { htmlToText } from './admin/richtext';
+import { Button, HtmlFrame, Icon, IconButton, cx } from './primitives';
 import styles from './styles.module.css';
 
 export interface AnnouncementsHostProps {
@@ -26,7 +27,7 @@ export interface AnnouncementsHostProps {
    * dealt with it. Default: `'hide-for-session'`.
    */
   toastOnTimeout?: 'hide-for-session' | 'dismiss';
-  /** Corner cards on screen at once. Default: 3. */
+  /** Corner cards in the stack. Default: 5. */
   maxCorner?: number;
   /** Toasts on screen at once. Default: 2. */
   maxToasts?: number;
@@ -58,26 +59,60 @@ function writeHidden(ids: readonly string[]) {
   }
 }
 
-function useBody(entry: AnnouncementEntry): ReactNode {
-  const { renderHtml } = useNotificationsContext();
-  if (entry.bodyHtml && renderHtml) return renderHtml(entry.bodyHtml, entry);
-  return entry.bodyText;
+/** Short body for a card: the text twin, else the HTML reduced to text. */
+function cardText(entry: AnnouncementEntry): string | null {
+  if (entry.bodyText) return entry.bodyText;
+  if (!entry.bodyHtml || typeof DOMParser === 'undefined') return null;
+  return htmlToText(entry.bodyHtml);
+}
+
+/** Full body for the dialog: the host's renderer, the isolated frame, or text. */
+function useDialogBody(entry: AnnouncementEntry): ReactNode {
+  const { renderHtml, t } = useNotificationsContext();
+  if (entry.bodyHtml) {
+    return renderHtml ? (
+      renderHtml(entry.bodyHtml, entry)
+    ) : (
+      <HtmlFrame
+        html={entry.bodyHtml}
+        title={entry.subject ?? t('announcement.untitled')}
+      />
+    );
+  }
+  return entry.bodyText ? (
+    <p className={styles.bodyText}>{entry.bodyText}</p>
+  ) : null;
 }
 
 interface CardProps {
   entry: AnnouncementEntry;
   toast?: boolean;
   onClose: () => void;
+  className?: string;
+  style?: CSSProperties;
+  inert?: boolean;
+  /** A line under the text (e.g. "2 more" on a folded stack). */
+  footer?: ReactNode;
 }
 
-function AnnouncementCard({ entry, toast, onClose }: CardProps) {
+function AnnouncementCard({
+  entry,
+  toast,
+  onClose,
+  className,
+  style,
+  inert,
+  footer,
+}: CardProps) {
   const { t } = useNotificationsContext();
-  const body = useBody(entry);
+  const body = cardText(entry);
   return (
     <div
-      className={cx(styles.card, toast && styles.toast)}
+      className={cx(styles.card, toast && styles.toast, className)}
+      style={style}
       role={toast ? 'status' : 'group'}
       aria-label={toast ? undefined : (entry.subject ?? undefined)}
+      aria-hidden={inert || undefined}
     >
       <span className={styles.cardIcon}>
         <Icon name='info' />
@@ -87,14 +122,115 @@ function AnnouncementCard({ entry, toast, onClose }: CardProps) {
           {entry.subject ?? t('announcement.untitled')}
         </span>
         {body && <div className={styles.cardBody}>{body}</div>}
+        {footer && <span className={styles.cardFooter}>{footer}</span>}
       </div>
       <IconButton
         icon='close'
         small
         label={t('announcement.dismiss')}
         className={styles.cardClose}
-        onClick={onClose}
+        tabIndex={inert ? -1 : undefined}
+        onClick={event => {
+          event.stopPropagation();
+          onClose();
+        }}
       />
+    </div>
+  );
+}
+
+/**
+ * Corner announcements as a stack, the way a phone groups notifications:
+ * the newest card in front, up to two peeking out behind it. A click on the
+ * stack fans it out into a list; "Show less" or Escape folds it back.
+ */
+function CornerDeck({
+  entries,
+  onDismiss,
+  position,
+}: {
+  entries: AnnouncementEntry[];
+  onDismiss: (id: string) => void;
+  position: 'top-end' | 'bottom-end';
+}) {
+  const { t } = useNotificationsContext();
+  const [expanded, setExpanded] = useState(false);
+  const many = entries.length > 1;
+  const open = expanded && many;
+
+  useEffect(() => {
+    if (!many) setExpanded(false);
+  }, [many]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setExpanded(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  return (
+    <div
+      className={cx(
+        styles.root,
+        styles.overlay,
+        styles.overlayCorner,
+        position === 'bottom-end' && styles.overlayCornerBottom
+      )}
+      role='region'
+      aria-label={t('announcement.region')}
+    >
+      {open && (
+        <div className={styles.deckBar}>
+          <Button variant='ghost' onClick={() => setExpanded(false)}>
+            {t('announcement.collapse')}
+          </Button>
+          <Button
+            variant='ghost'
+            onClick={() => entries.forEach(entry => onDismiss(entry.id))}
+          >
+            {t('announcement.dismissAll')}
+          </Button>
+        </div>
+      )}
+      <div
+        className={styles.deck}
+        data-expanded={open || undefined}
+        data-stacked={(!open && many) || undefined}
+        onClick={many && !open ? () => setExpanded(true) : undefined}
+        role={many && !open ? 'button' : undefined}
+        tabIndex={many && !open ? 0 : undefined}
+        aria-expanded={many ? open : undefined}
+        aria-label={
+          many && !open
+            ? t('announcement.expand', { count: entries.length })
+            : undefined
+        }
+        onKeyDown={event => {
+          if (many && !open && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault();
+            setExpanded(true);
+          }
+        }}
+      >
+        {entries.map((entry, index) => (
+          <AnnouncementCard
+            key={entry.id}
+            entry={entry}
+            className={styles.deckCard}
+            style={{ '--nk-deck-i': index } as CSSProperties}
+            inert={!open && index > 0}
+            footer={
+              many && !open && index === 0
+                ? t('announcement.more', { count: entries.length - 1 })
+                : undefined
+            }
+            onClose={() => onDismiss(entry.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -129,7 +265,7 @@ function AnnouncementDialog({
   onAcknowledge: () => void;
 }) {
   const { t } = useNotificationsContext();
-  const body = useBody(entry);
+  const body = useDialogBody(entry);
   const titleId = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -159,9 +295,7 @@ function AnnouncementDialog({
         <h2 id={titleId} className={styles.dialogTitle}>
           {entry.subject ?? t('announcement.untitled')}
         </h2>
-        {body && (
-          <div className={cx(styles.dialogBody, styles.bodyText)}>{body}</div>
-        )}
+        {body && <div className={styles.dialogBody}>{body}</div>}
         <div className={styles.dialogActions}>
           <Button ref={buttonRef} variant='primary' onClick={onAcknowledge}>
             {t('announcement.acknowledge')}
@@ -180,12 +314,12 @@ function AnnouncementDialog({
 export function AnnouncementsHost({
   toastDurationMs = 8000,
   toastOnTimeout = 'hide-for-session',
-  maxCorner = 3,
+  maxCorner = 5,
   maxToasts = 2,
   cornerPosition = 'top-end',
   container,
 }: AnnouncementsHostProps) {
-  const { t, resolvePresentation } = useNotificationsContext();
+  const { resolvePresentation } = useNotificationsContext();
   const { data } = useAnnouncements();
   const dismiss = useDismissAnnouncement();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(
@@ -249,24 +383,11 @@ export function AnnouncementsHost({
         </div>
       )}
       {plan.corner.length > 0 && (
-        <div
-          className={cx(
-            styles.root,
-            styles.overlay,
-            styles.overlayCorner,
-            cornerPosition === 'bottom-end' && styles.overlayCornerBottom
-          )}
-          role='region'
-          aria-label={t('announcement.region')}
-        >
-          {plan.corner.map(entry => (
-            <AnnouncementCard
-              key={entry.id}
-              entry={entry}
-              onClose={() => dismissNow(entry.id)}
-            />
-          ))}
-        </div>
+        <CornerDeck
+          entries={plan.corner}
+          onDismiss={dismissNow}
+          position={cornerPosition}
+        />
       )}
       {plan.modal && (
         <AnnouncementDialog

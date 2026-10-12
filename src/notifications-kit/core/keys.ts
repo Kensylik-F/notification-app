@@ -36,6 +36,4 @@ export const notificationKeys = {
     [...notificationKeys.admin(), 'request', id] as const,
   emailRun: (announcementId: string) =>
     [...notificationKeys.admin(), 'email-run', announcementId] as const,
-  /** Announcements published from this browser session. */
-  published: () => [...notificationKeys.admin(), 'published'] as const,
 };

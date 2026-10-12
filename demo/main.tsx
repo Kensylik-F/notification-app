@@ -3,6 +3,7 @@ import { StrictMode, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import {
+  AnnouncementFeed,
   AnnouncementPublisher,
   AnnouncementsHost,
   DeliveryLog,
@@ -50,8 +51,9 @@ const describeItem = (entry: InboxEntry) =>
     ? { title: LABELS[entry.category]! }
     : undefined;
 
-// What the host knows and the service does not publish: category and role
-// catalogues, human names, the people directory, the person's permissions.
+// What the host knows and the service does not publish: which categories
+// and roles its deployment has configured, the people directory, the
+// person's permissions. Demo values.
 const ADMIN: AdminOptions = {
   categories: [
     { code: 'preorder', label: 'Предзаказы', categoryClass: 'TRANSACTIONAL' },
@@ -70,18 +72,8 @@ const ADMIN: AdminOptions = {
     { code: 'SOURCE_OWNER', label: 'Владельцы источников' },
     { code: 'ANALYST', label: 'Аналитики' },
   ],
-  templateLabels: {
-    welcome: 'Приветствие',
-    'password-reset': 'Сброс пароля',
-    'platform-release': 'Новая версия',
-  },
-  variableLabels: {
-    productName: 'Продукт',
-    version: 'Версия',
-    gettingStartedLink: 'Ссылка «С чего начать»',
-    resetLink: 'Ссылка для сброса',
-    expiresInMinutes: 'Срок действия, мин',
-  },
+  // The deployment has service-templates/custom-message.
+  freeformTemplateKey: 'custom-message',
   searchRecipients: searchPeople,
 };
 
@@ -100,6 +92,9 @@ function App() {
   );
   const [openId, setOpenId] = useState<string | null>(() => params.get('item'));
   const [requestId, setRequestId] = useState<string | undefined>();
+  const [feed, setFeed] = useState<'inbox' | 'announcements'>(() =>
+    params.get('feed') === 'announcements' ? 'announcements' : 'inbox'
+  );
   const [dark, setDark] = useState(() => params.get('theme') === 'dark');
   const headerRef = useRef<HTMLElement>(null);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
@@ -176,7 +171,27 @@ function App() {
             {view === 'inbox' && !openId && (
               <>
                 <h1 className='pageTitle'>Уведомления</h1>
-                <InboxPanel onOpenItem={entry => setOpenId(entry.id)} />
+                <div className='pageTabs' role='tablist'>
+                  <button
+                    role='tab'
+                    aria-selected={feed === 'inbox'}
+                    onClick={() => setFeed('inbox')}
+                  >
+                    Уведомления
+                  </button>
+                  <button
+                    role='tab'
+                    aria-selected={feed === 'announcements'}
+                    onClick={() => setFeed('announcements')}
+                  >
+                    Объявления
+                  </button>
+                </div>
+                {feed === 'inbox' ? (
+                  <InboxPanel onOpenItem={entry => setOpenId(entry.id)} />
+                ) : (
+                  <AnnouncementFeed />
+                )}
               </>
             )}
             {view === 'compose' && (
