@@ -1,0 +1,116 @@
+/* Demo chrome only. The --nk-* block below is what a host declares to skin
+   the kit; here it also provides the dark theme. */
+:root {
+  color-scheme: light;
+  --page: #e2e5e3;
+  --panel: #f3f4f2;
+  --line: rgba(22, 40, 38, 0.1);
+  --ink: #1b2524;
+  --muted: #5d6866;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --page: #111514;
+  --panel: #191e1d;
+  --line: rgba(255, 255, 255, 0.1);
+  --ink: #e9edec;
+  --muted: #a3adab;
+
+  --nk-color-text: #e9edec;
+  --nk-color-text-muted: #a3adab;
+  --nk-color-surface-raised: #252c2b;
+  --nk-color-surface-hover: rgba(255, 255, 255, 0.07);
+  --nk-color-border: rgba(255, 255, 255, 0.1);
+  --nk-color-border-strong: rgba(255, 255, 255, 0.22);
+  --nk-color-accent: #5bb3ab;
+  --nk-color-on-accent: #06201d;
+  --nk-color-accent-text: #86cfc8;
+  --nk-color-accent-soft: rgba(91, 179, 171, 0.17);
+  --nk-color-badge: #e0795c;
+  --nk-color-on-badge: #2a0d04;
+  --nk-color-scrim: rgba(0, 0, 0, 0.6);
+  --nk-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+:root {
+  --nk-overlay-top: 84px;
+  --nk-overlay-inline: 24px;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  font-size: 14px;
+}
+
+.shell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.header,
+.main {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+
+.header {
+  flex: none;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px 0 18px;
+}
+
+.brand {
+  font-weight: 700;
+  margin-right: auto;
+}
+
+.demoButton {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.main {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 20px;
+}
+
+.crumbs {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pageTitle {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.back {
+  margin-bottom: 12px;
+}

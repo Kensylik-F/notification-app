@@ -1,0 +1,628 @@
+/* notifications-kit styles.
+   Every value comes from a --nk-* custom property with a neutral fallback,
+   so the kit renders on its own and a host re-skins it by declaring those
+   properties once (see README, "Theming"). No selector reaches outside the
+   kit's own class names. */
+
+.root {
+  font-family: var(--nk-font, system-ui, -apple-system, 'Segoe UI', sans-serif);
+  font-size: var(--nk-font-size-body, 14px);
+  line-height: 1.45;
+  color: var(--nk-color-text, #1b2524);
+  box-sizing: border-box;
+}
+
+.root *,
+.root *::before,
+.root *::after {
+  box-sizing: border-box;
+}
+
+/* ── controls ─────────────────────────────────────────────────────────── */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--nk-space-sm, 8px);
+  min-height: var(--nk-control-height, 32px);
+  padding: 0 var(--nk-space-md, 12px);
+  border: 1px solid transparent;
+  border-radius: var(--nk-radius-md, 10px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--nk-font-size-label, 13px);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.button:focus-visible,
+.iconButton:focus-visible,
+.rowMain:focus-visible,
+.tab:focus-visible {
+  outline: 2px solid var(--nk-color-accent, #2a756f);
+  outline-offset: 2px;
+}
+
+.buttonPrimary {
+  background: var(--nk-color-accent, #2a756f);
+  color: var(--nk-color-on-accent, #ffffff);
+}
+
+.buttonOutline {
+  border-color: var(--nk-color-border-strong, rgba(22, 40, 38, 0.2));
+}
+
+.buttonGhost {
+  color: var(--nk-color-accent-text, #1d5d58);
+}
+
+.buttonOutline:not(:disabled):hover,
+.buttonGhost:not(:disabled):hover {
+  background: var(--nk-color-surface-hover, rgba(22, 40, 38, 0.06));
+}
+
+.buttonPrimary:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+.iconButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--nk-control-height, 32px);
+  height: var(--nk-control-height, 32px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--nk-radius-md, 10px);
+  background: transparent;
+  color: var(--nk-color-text-muted, #5d6866);
+  cursor: pointer;
+}
+
+.iconButton:hover,
+.iconButton[aria-expanded='true'] {
+  background: var(--nk-color-surface-hover, rgba(22, 40, 38, 0.06));
+  color: var(--nk-color-text, #1b2524);
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.iconSmall {
+  width: 14px;
+  height: 14px;
+}
+
+.badge {
+  position: absolute;
+  top: -2px;
+  inset-inline-end: -2px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--nk-color-badge, #c8502f);
+  color: var(--nk-color-on-badge, #ffffff);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--nk-color-border-strong, rgba(22, 40, 38, 0.2));
+  border-top-color: var(--nk-color-accent, #2a756f);
+  border-radius: 50%;
+  animation: nk-spin 0.8s linear infinite;
+}
+
+@keyframes nk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── bell ─────────────────────────────────────────────────────────────── */
+
+.bell {
+  position: relative;
+  display: inline-flex;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + var(--nk-space-sm, 8px));
+  inset-inline-end: 0;
+  /* Above the announcement overlays: an open dropdown is what the person
+     is looking at. */
+  z-index: calc(var(--nk-z-overlay, 1000) + 10);
+  width: min(380px, calc(100vw - 32px));
+  max-height: min(520px, calc(100vh - 96px));
+  display: flex;
+  flex-direction: column;
+  background: var(--nk-color-surface-raised, #ffffff);
+  border: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
+  border-radius: var(--nk-radius-lg, 14px);
+  box-shadow: var(
+    --nk-shadow,
+    0 14px 36px rgba(20, 35, 33, 0.16),
+    0 2px 6px rgba(20, 35, 33, 0.08)
+  );
+  overflow: hidden;
+}
+
+.popoverAlignStart {
+  inset-inline-end: auto;
+  inset-inline-start: 0;
+}
+
+.popoverHeader,
+.popoverFooter {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nk-space-md, 12px);
+  padding: var(--nk-space-md, 12px) var(--nk-space-lg, 16px);
+}
+
+.popoverFooter {
+  border-top: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
+  padding-block: var(--nk-space-sm, 8px);
+}
+
+.popoverTitle {
+  margin: 0;
+  font-size: var(--nk-font-size-title, 16px);
+  font-weight: 600;
+}
+
+.popoverBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--nk-space-xs, 4px) var(--nk-space-xs, 4px);
+}
+
+/* ── inbox ────────────────────────────────────────────────────────────── */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nk-space-sm, 8px);
+  min-width: 0;
+}
+
+.panelBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nk-space-sm, 8px) var(--nk-space-lg, 16px);
+  min-height: 40px;
+}
+
+.tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--nk-radius-md, 10px);
+  background: var(--nk-color-surface-hover, rgba(22, 40, 38, 0.06));
+}
+
+.tab {
+  min-height: 28px;
+  padding: 0 var(--nk-space-md, 12px);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: var(--nk-radius-sm, 8px);
+  background: transparent;
+  color: var(--nk-color-text-muted, #5d6866);
+  font: inherit;
+  font-size: var(--nk-font-size-label, 13px);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tab[aria-selected='true'] {
+  background: var(--nk-color-surface-raised, #ffffff);
+  color: var(--nk-color-text, #1b2524);
+  box-shadow: 0 1px 3px rgba(20, 35, 33, 0.12);
+}
+
+.tabCount {
+  font-size: var(--nk-font-size-caption, 12px);
+  font-weight: 600;
+  color: var(--nk-color-accent-text, #1d5d58);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--nk-space-xs, 4px);
+  border-radius: var(--nk-radius-md, 10px);
+}
+
+.row:hover,
+.row:focus-within {
+  background: var(--nk-color-surface-hover, rgba(22, 40, 38, 0.06));
+}
+
+.rowMain {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--nk-space-md, 12px);
+  padding: var(--nk-space-md, 12px);
+  border: 0;
+  border-radius: var(--nk-radius-md, 10px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.rowMain:disabled {
+  cursor: default;
+}
+
+/* The mark keeps its width when the row is read, so titles stay aligned. */
+.unreadMark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--nk-color-accent, #2a756f);
+  visibility: hidden;
+}
+
+.unreadMark[data-unread='true'] {
+  visibility: visible;
+}
+
+.rowText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rowTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+.rowTitle[data-unread='true'] {
+  font-weight: 600;
+}
+
+.rowHint,
+.rowTime {
+  font-size: var(--nk-font-size-caption, 12px);
+  color: var(--nk-color-text-muted, #5d6866);
+}
+
+.rowHint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowTime {
+  flex: none;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+.rowAction {
+  margin: 6px 6px 0 0;
+  opacity: 0;
+}
+
+.row:hover .rowAction,
+.row:focus-within .rowAction {
+  opacity: 1;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--nk-color-accent-soft, rgba(42, 117, 111, 0.13));
+  color: var(--nk-color-accent-text, #1d5d58);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.skeleton {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--nk-color-surface-hover, rgba(22, 40, 38, 0.06));
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--nk-space-sm, 8px);
+  padding: var(--nk-space-xl, 24px) var(--nk-space-lg, 16px);
+  color: var(--nk-color-text-muted, #5d6866);
+  text-align: center;
+}
+
+.stateTitle {
+  color: var(--nk-color-text, #1b2524);
+  font-weight: 500;
+}
+
+.stateNote {
+  font-size: var(--nk-font-size-caption, 12px);
+}
+
+.panelFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nk-space-sm, 8px);
+  min-height: 40px;
+  font-size: var(--nk-font-size-caption, 12px);
+  color: var(--nk-color-text-muted, #5d6866);
+}
+
+/* ── single item ──────────────────────────────────────────────────────── */
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nk-space-lg, 16px);
+  max-width: 760px;
+  min-width: 0;
+}
+
+.itemHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--nk-space-sm, 8px) var(--nk-space-lg, 16px);
+}
+
+.itemHeading {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--nk-space-xs, 4px);
+}
+
+.itemSubject {
+  margin: 0;
+  font-size: var(--nk-font-size-title, 16px);
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.itemMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--nk-space-sm, 8px);
+  font-size: var(--nk-font-size-caption, 12px);
+  color: var(--nk-color-text-muted, #5d6866);
+}
+
+.bodyText {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ── announcements ────────────────────────────────────────────────────── */
+
+.overlay {
+  position: fixed;
+  z-index: var(--nk-z-overlay, 1000);
+  display: flex;
+  flex-direction: column;
+  gap: var(--nk-space-sm, 8px);
+  pointer-events: none;
+}
+
+.overlay > * {
+  pointer-events: auto;
+}
+
+.overlayCorner {
+  top: var(--nk-overlay-top, 16px);
+  inset-inline-end: var(--nk-overlay-inline, 16px);
+  width: min(360px, calc(100vw - 32px));
+}
+
+.overlayCornerBottom {
+  top: auto;
+  bottom: var(--nk-overlay-bottom, 16px);
+  flex-direction: column-reverse;
+}
+
+.overlayToast {
+  top: var(--nk-overlay-top, 16px);
+  inset-inline: 0;
+  align-items: center;
+  padding-inline: 16px;
+}
+
+.card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--nk-space-md, 12px);
+  padding: var(--nk-space-md, 12px) var(--nk-space-md, 12px)
+    var(--nk-space-md, 12px) var(--nk-space-lg, 16px);
+  background: var(--nk-color-surface-raised, #ffffff);
+  border: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
+  border-radius: var(--nk-radius-lg, 14px);
+  box-shadow: var(
+    --nk-shadow,
+    0 14px 36px rgba(20, 35, 33, 0.16),
+    0 2px 6px rgba(20, 35, 33, 0.08)
+  );
+  animation: nk-enter 0.18s ease-out;
+}
+
+.toast {
+  width: min(520px, 100%);
+}
+
+.cardIcon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--nk-color-accent-text, #1d5d58);
+}
+
+.cardText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--nk-space-xs, 4px);
+}
+
+.cardTitle {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.cardBody {
+  font-size: var(--nk-font-size-label, 13px);
+  color: var(--nk-color-text-muted, #5d6866);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+
+.cardClose {
+  margin: -4px -4px 0 0;
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--nk-z-overlay, 1000);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--nk-color-scrim, rgba(15, 25, 24, 0.4));
+}
+
+.dialog {
+  width: min(520px, 100%);
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--nk-space-lg, 16px);
+  padding: var(--nk-space-xl, 24px);
+  background: var(--nk-color-surface-raised, #ffffff);
+  border-radius: var(--nk-radius-lg, 14px);
+  box-shadow: var(
+    --nk-shadow,
+    0 14px 36px rgba(20, 35, 33, 0.16),
+    0 2px 6px rgba(20, 35, 33, 0.08)
+  );
+  animation: nk-enter 0.18s ease-out;
+}
+
+.dialogTitle {
+  margin: 0;
+  font-size: var(--nk-font-size-title, 16px);
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.dialogBody {
+  min-height: 0;
+  overflow-y: auto;
+  color: var(--nk-color-text, #1b2524);
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--nk-space-sm, 8px);
+}
+
+/* On a narrow screen the two overlays would land on top of each other, so
+   the corner cards move to the bottom edge. */
+@media (max-width: 720px) {
+  .overlayCorner {
+    top: auto;
+    bottom: var(--nk-overlay-bottom, 16px);
+    inset-inline: 16px;
+    width: auto;
+  }
+}
+
+@keyframes nk-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .dialog {
+    animation: none;
+  }
+
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
