@@ -12,12 +12,19 @@ import {
   removeEntry,
 } from './cache';
 import type { InboxListData } from './cache';
-import { formatRelative } from './format';
+import { hasMore, plainText } from './content';
+import {
+  formatCardTime,
+  formatDay,
+  formatListTime,
+  formatRelative,
+} from './format';
 import {
   createTranslate,
   interpolate,
   MESSAGES_EN,
   MESSAGES_RU,
+  plural,
 } from './messages';
 import { planAnnouncements, presentationByCategory } from './presentation';
 
@@ -220,5 +227,57 @@ describe('formatting and messages', () => {
     expect(t('bell.title')).toBe('Центр уведомлений');
     expect(t('inbox.total', { count: 7 })).toBe('Всего: 7');
     expect(createTranslate('en')('bell.title')).toBe('Notifications');
+  });
+});
+
+describe('times, plurals and card text (0.4)', () => {
+  // Local-time instants, so the day boundaries do not depend on the zone.
+  const at = (y: number, m: number, d: number, h = 0, min = 0) =>
+    new Date(y, m - 1, d, h, min).toISOString();
+  const now = Date.parse(at(2026, 10, 13, 12, 0));
+
+  it('gives a list the clock today, "yesterday", then a short date', () => {
+    expect(formatListTime(at(2026, 10, 13, 9, 5), now, 'en')).toMatch(/09:05/);
+    expect(formatListTime(at(2026, 10, 12, 23, 0), now, 'ru')).toBe('вчера');
+    expect(formatListTime(at(2026, 10, 8, 10), now, 'en')).toBe('Oct 8');
+    expect(formatListTime(at(2025, 10, 8, 10), now, 'en')).toBe('Oct 8, 2025');
+    expect(formatListTime(null, now, 'en')).toBeNull();
+  });
+
+  it('gives a card the day word with the time', () => {
+    expect(formatCardTime(at(2026, 10, 13, 8, 0), now, 'ru')).toMatch(
+      /^сегодня, 08:00$/
+    );
+    expect(formatCardTime(at(2026, 10, 12, 17, 42), now, 'ru')).toMatch(
+      /^вчера, 17:42$/
+    );
+  });
+
+  it('drops the time at midnight and the year in the current one', () => {
+    expect(formatDay(at(2026, 10, 19), now, 'ru')).toBe('19 октября');
+    expect(formatDay(at(2026, 10, 14, 6, 0), now, 'ru')).toBe(
+      '14 октября, 06:00'
+    );
+  });
+
+  it('picks Russian and English plural forms', () => {
+    const forms = 'получатель|получателя|получателей';
+    expect(plural(forms, 1, 'ru')).toBe('получатель');
+    expect(plural(forms, 3, 'ru')).toBe('получателя');
+    expect(plural(forms, 5, 'ru')).toBe('получателей');
+    expect(plural(forms, 21, 'ru')).toBe('получатель');
+    expect(plural('delivery|deliveries', 1, 'en')).toBe('delivery');
+    expect(plural('delivery|deliveries', 0, 'en')).toBe('deliveries');
+  });
+
+  it('offers "read more" for formatting or long text only', () => {
+    expect(plainText({ bodyText: '  text ', bodyHtml: null })).toBe('text');
+    expect(hasMore({ bodyText: 'short', bodyHtml: '<p>short</p>' })).toBe(
+      false
+    );
+    expect(
+      hasMore({ bodyText: 'list', bodyHtml: '<ul><li>list</li></ul>' })
+    ).toBe(true);
+    expect(hasMore({ bodyText: 'x'.repeat(200), bodyHtml: null })).toBe(true);
   });
 });

@@ -2,7 +2,7 @@
  * Native form controls styled with the kit's variables. Native on purpose:
  * keyboard, autofill, mobile pickers and screen readers work without code.
  */
-import { useId } from 'react';
+import { useId, useRef, useState } from 'react';
 import type {
   InputHTMLAttributes,
   ReactNode,
@@ -10,7 +10,9 @@ import type {
   TextareaHTMLAttributes,
 } from 'react';
 
-import { cx } from '../primitives';
+import { useIndicator } from '../motion';
+import { Icon, cx } from '../primitives';
+import type { IconName } from '../primitives';
 import styles from './admin.module.css';
 
 interface FieldProps {
@@ -149,23 +151,47 @@ export interface ChoiceOption<T extends string> {
   disabled?: boolean;
 }
 
-/** One of a few: a segmented row of radio buttons. */
+/** One of a few: a segmented row of radio buttons with a sliding thumb. */
 export function Segmented<T extends string>({
   name,
   value,
   options,
   onChange,
+  label,
 }: {
   /** Prefix of the radio group name; the group is unique per instance. */
   name?: string;
   value: T;
   options: readonly ChoiceOption<T>[];
   onChange: (value: T) => void;
+  /** Accessible name of the group. */
+  label?: string;
 }) {
   // Two forms on one page must not share a radio group.
   const group = `${name ?? 'nk-choice'}-${useId()}`;
+  const ref = useRef<HTMLDivElement>(null);
+  const box = useIndicator(ref, '[data-checked="true"]', [
+    value,
+    options.length,
+  ]);
   return (
-    <div className={styles.segmented} role='radiogroup'>
+    <div
+      ref={ref}
+      className={styles.segmented}
+      role='radiogroup'
+      aria-label={label}
+    >
+      {box && (
+        <span
+          className={styles.segmentThumb}
+          aria-hidden='true'
+          style={{
+            width: box.width,
+            height: box.height,
+            transform: `translate(${box.left}px, ${box.top}px)`,
+          }}
+        />
+      )}
       {options.map(option => (
         <label
           key={option.value}
@@ -184,6 +210,61 @@ export function Segmented<T extends string>({
           <span>{option.label}</span>
         </label>
       ))}
+    </div>
+  );
+}
+
+export interface TileOption<T extends string> extends ChoiceOption<T> {
+  icon: IconName;
+}
+
+/** Several of a few, as tiles with an icon and a check mark (channels). */
+export function CheckTiles<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: readonly T[];
+  options: readonly TileOption<T>[];
+  onChange: (value: T[]) => void;
+  label?: string;
+}) {
+  return (
+    <div className={styles.tiles} role='group' aria-label={label}>
+      {options.map(option => {
+        const checked = value.includes(option.value);
+        return (
+          <label
+            key={option.value}
+            className={styles.tile}
+            data-checked={checked}
+            data-disabled={option.disabled || undefined}
+          >
+            <input
+              type='checkbox'
+              checked={checked}
+              disabled={option.disabled}
+              onChange={() =>
+                onChange(
+                  checked
+                    ? value.filter(v => v !== option.value)
+                    : [...value, option.value]
+                )
+              }
+            />
+            <span className={styles.tileTop}>
+              <span className={styles.tileIcon}>
+                <Icon name={option.icon} size={20} />
+              </span>
+              <span className={styles.tileCheck} aria-hidden='true'>
+                <Icon name='check' size={12} weight={3.5} />
+              </span>
+            </span>
+            <span className={styles.tileLabel}>{option.label}</span>
+          </label>
+        );
+      })}
     </div>
   );
 }
@@ -229,33 +310,53 @@ export function CheckChips<T extends string>({
   );
 }
 
-/** A titled block of a form, optionally numbered as a step. */
+/** A titled block of a form; `aside` sits at the right of the title. */
 export function FormSection({
   title,
   children,
   aside,
-  step,
 }: {
   title: ReactNode;
   children: ReactNode;
   aside?: ReactNode;
-  step?: number;
 }) {
   return (
     <section className={styles.section}>
       <header className={styles.sectionHeader}>
-        <h3 className={styles.sectionTitle}>
-          {step !== undefined && (
-            <span className={styles.step} aria-hidden='true'>
-              {step}
-            </span>
-          )}
-          {title}
-        </h3>
+        <h3 className={styles.sectionTitle}>{title}</h3>
         {aside}
       </header>
       <div className={styles.sectionBody}>{children}</div>
     </section>
+  );
+}
+
+/** A link-like toggle that unfolds more fields, with the height animated. */
+export function Disclosure({
+  summary,
+  children,
+}: {
+  summary: ReactNode;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <div className={styles.disclosure} data-open={open}>
+      <button
+        type='button'
+        className={styles.disclosureButton}
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen(v => !v)}
+      >
+        {summary}
+        <Icon name='chevron' size={12} weight={2.4} />
+      </button>
+      <div id={id} className={styles.disclosureBody} aria-hidden={!open}>
+        <div className={styles.disclosureInner}>{children}</div>
+      </div>
+    </div>
   );
 }
 
@@ -308,4 +409,15 @@ export function localDateToIso(value: string, endOfDay = false): string {
     ? new Date(y, m - 1, d, 23, 59, 59, 999)
     : new Date(y, m - 1, d);
   return date.toISOString();
+}
+
+/** After a failed submit: bring the first marked field into view, once the
+ *  errors have rendered. */
+export function revealFirstError(root: HTMLElement | null) {
+  requestAnimationFrame(() => {
+    const target = root?.querySelector<HTMLElement>(
+      '[aria-invalid="true"], [data-invalid="true"], [role="alert"]'
+    );
+    target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  });
 }

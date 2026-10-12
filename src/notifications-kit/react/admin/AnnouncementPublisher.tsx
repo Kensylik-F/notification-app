@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import {
   buildPublishRequest,
@@ -17,8 +17,19 @@ import type {
   PublishDraft,
 } from '../../core';
 import { useNotificationsContext } from '../context';
-import { formatDateTime } from '../format';
-import { Button, Spinner, StateBlock, cx } from '../primitives';
+import { formatDateTime, formatDay } from '../format';
+import type { AnnouncementPresentation } from '../presentation';
+import { useDockObstacle } from '../dock';
+import { useKitPreview } from '../preview';
+import {
+  Button,
+  Dialog,
+  Icon,
+  Spinner,
+  StateBlock,
+  cx,
+  useDomId,
+} from '../primitives';
 import styles from './admin.module.css';
 import { Combobox, Dropdown } from './Dropdown';
 import { ErrorNotice } from './errors';
@@ -29,6 +40,7 @@ import {
   Notice,
   Segmented,
   TextInput,
+  revealFirstError,
   toLocalInput,
 } from './forms';
 import {
@@ -37,10 +49,27 @@ import {
   useEmailRun,
   usePublishAnnouncement,
 } from './hooks';
-import { MessageFields, initialContent } from './MessageFields';
-import { TemplatePreview } from './TemplatePreview';
+import {
+  MessageFields,
+  MessageModeSwitch,
+  initialContent,
+} from './MessageFields';
+import {
+  PreviewButton,
+  PreviewStrip,
+  previewAnnouncementEntry,
+  useClearPreviewOnLeave,
+  useFetchPreview,
+  usePreviewRequest,
+} from './Preview';
 
 const DEFAULT_WINDOW_DAYS = 7;
+const CONTENT_KEYS = ['subject', 'body', 'templateKey', 'variables'] as const;
+const SHOWN: Exclude<AnnouncementPresentation, 'none'>[] = [
+  'corner',
+  'modal',
+  'toast',
+];
 
 interface PublisherState {
   category: string;
@@ -93,20 +122,132 @@ function useLabels() {
   };
 }
 
+/** How the host shows an announcement of this category. */
+function usePresentationOf() {
+  const { resolvePresentation } = useNotificationsContext();
+  return (category: string): AnnouncementPresentation =>
+    resolvePresentation({
+      id: 'probe',
+      category: category.trim() || null,
+      categoryClass: null,
+      locale: null,
+      subject: null,
+      bodyText: null,
+      bodyHtml: null,
+      publishedAt: null,
+      visibleFrom: null,
+      visibleUntil: null,
+      dismissed: false,
+    });
+}
+
+/**
+ * Plays an announcement out on this page, where and how it would show:
+ * the service renders it for the in-app channel, the kit puts it among the
+ * overlays (the deck, a dialog or a strip) marked as a preview.
+ */
+function useAnnouncementPreview(content: MessageContent) {
+  const [, setKitPreview] = useKitPreview();
+  const fetchPreview = useFetchPreview();
+  const requestFor = usePreviewRequest(content);
+  const presentationOf = usePresentationOf();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [none, setNone] = useState(false);
+
+  const run = async (category: string, visibleUntil: string | null) => {
+    const request = requestFor('IN_APP');
+    if (!request) return;
+    setBusy(true);
+    setError(null);
+    setNone(false);
+    try {
+      const result = await fetchPreview(request);
+      const until = visibleUntil ? new Date(visibleUntil) : null;
+      const entry = previewAnnouncementEntry(result, {
+        category: category.trim() || null,
+        visibleUntil:
+          until && !Number.isNaN(until.getTime()) ? until.toISOString() : null,
+      });
+      const presentation = presentationOf(category);
+      if (presentation === 'none') setNone(true);
+      else setKitPreview({ kind: 'announcement', entry, presentation });
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return {
+    run,
+    busy,
+    error,
+    none,
+    clear: () => {
+      setError(null);
+      setNone(false);
+    },
+  };
+}
+
+const PRESENTATION_ICON: Record<
+  Exclude<AnnouncementPresentation, 'none'>,
+  JSX.Element
+> = {
+  corner: (
+    <svg
+      width='28'
+      height='20'
+      viewBox='0 0 28 20'
+      fill='none'
+      aria-hidden='true'
+    >
+      <rect x='.5' y='.5' width='27' height='19' rx='3' stroke='currentColor' />
+      <rect x='15' y='11' width='10' height='6' rx='1.5' fill='currentColor' />
+    </svg>
+  ),
+  modal: (
+    <svg
+      width='28'
+      height='20'
+      viewBox='0 0 28 20'
+      fill='none'
+      aria-hidden='true'
+    >
+      <rect x='.5' y='.5' width='27' height='19' rx='3' stroke='currentColor' />
+      <rect x='8' y='5' width='12' height='10' rx='1.5' fill='currentColor' />
+    </svg>
+  ),
+  toast: (
+    <svg
+      width='28'
+      height='20'
+      viewBox='0 0 28 20'
+      fill='none'
+      aria-hidden='true'
+    >
+      <rect x='.5' y='.5' width='27' height='19' rx='3' stroke='currentColor' />
+      <rect x='5' y='3' width='18' height='4' rx='1.5' fill='currentColor' />
+    </svg>
+  ),
+};
+
 export interface AnnouncementPublisherProps {
   onPublished?: (announcement: AnnouncementAdmin) => void;
 }
 
-/** Publish an announcement: category, audience, message, how long to show. */
+/** Publish an announcement: the message, who sees it and how, how long. */
 export function AnnouncementPublisher({
   onPublished,
 }: AnnouncementPublisherProps) {
-  const { t, admin } = useNotificationsContext();
+  const { t, admin, locale } = useNotificationsContext();
   const freeformKey = admin.freeformTemplateKey;
   const [state, setState] = useState<PublisherState>(() =>
     initialState(freeformKey)
   );
   const [showErrors, setShowErrors] = useState(false);
+  const [showContentErrors, setShowContentErrors] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [published, setPublished] = useState<{
     announcement: AnnouncementAdmin;
@@ -114,11 +255,15 @@ export function AnnouncementPublisher({
   } | null>(null);
   const publish = usePublishAnnouncement();
   const labels = useLabels();
-
-  const preview = useMemo(
-    () => contentToTemplate(state.content, freeformKey),
-    [state.content, freeformKey]
-  );
+  const presentationOf = usePresentationOf();
+  const [kitPreview, setKitPreview] = useKitPreview();
+  const preview = useAnnouncementPreview(state.content);
+  const confirmTitle = useDomId('nk-confirm');
+  const publishRef = useRef<HTMLButtonElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useDockObstacle(barRef);
+  useClearPreviewOnLeave();
 
   if (!admin.permissions.announce) {
     return (
@@ -140,6 +285,7 @@ export function AnnouncementPublisher({
           setPublished(null);
           setState(initialState(freeformKey));
           setShowErrors(false);
+          setShowContentErrors(false);
           publish.reset();
         }}
       />
@@ -151,12 +297,20 @@ export function AnnouncementPublisher({
     freeformTemplateKey: freeformKey,
     maxVisibilityDays: admin.maxVisibilityDays,
   });
-  const visible = showErrors ? errors : {};
+  const visible = showErrors
+    ? errors
+    : showContentErrors
+      ? Object.fromEntries(
+          CONTENT_KEYS.filter(k => errors[k]).map(k => [k, errors[k]])
+        )
+      : {};
   const valid = Object.keys(errors).length === 0;
+  const contentValid = CONTENT_KEYS.every(k => !errors[k]);
   const update = (patch: Partial<PublisherState>) =>
     setState(current => ({ ...current, ...patch }));
   const days = admin.maxVisibilityDays;
   const announcementCategories = admin.categories.filter(c => c.announcement);
+  const presentation = presentationOf(state.category);
 
   const untilError =
     visible.visibleUntil === 'tooLong'
@@ -172,6 +326,7 @@ export function AnnouncementPublisher({
     publish.mutate(request, {
       onSuccess: announcement => {
         setConfirming(false);
+        setKitPreview(null);
         setPublished({ announcement, request });
         onPublished?.(announcement);
       },
@@ -179,23 +334,49 @@ export function AnnouncementPublisher({
     });
   };
 
-  const previewIdle =
-    state.content.mode === 'freeform' &&
-    !state.content.subject.trim() &&
-    !state.content.bodyText.trim();
+  const audienceText =
+    state.audienceType === 'ROLE' && state.audienceValue.trim()
+      ? t('announce.audience.roleNamed', {
+          role: labels.role(state.audienceValue),
+        })
+      : t('announce.audience.EVERYONE');
+  const whoSees =
+    state.audienceType === 'ROLE' && state.audienceValue.trim()
+      ? t('preview.strip.announceRole', {
+          role: labels.role(state.audienceValue),
+        })
+      : t('preview.strip.announceEveryone');
+  const until = formatDay(
+    state.visibleUntil ? new Date(state.visibleUntil).toISOString() : null,
+    Date.now(),
+    locale
+  );
+  const previewOn = kitPreview?.kind === 'announcement';
 
   return (
-    <div className={cx(styles.root, styles.workspace)}>
+    <div className={cx(styles.root, styles.composer)} ref={rootRef}>
+      {previewOn && (
+        <PreviewStrip onExit={() => setKitPreview(null)}>
+          <strong>{t('preview.strip.title')}</strong> {whoSees}{' '}
+          {t('preview.strip.notPublished')}
+        </PreviewStrip>
+      )}
       <form
         className={styles.form}
         noValidate
         onSubmit={event => {
           event.preventDefault();
-          setShowErrors(true);
-          if (valid) setConfirming(true);
         }}
       >
-        <FormSection step={1} title={t('announce.section.what')}>
+        <FormSection
+          title={t('compose.section.message')}
+          aside={
+            <MessageModeSwitch
+              value={state.content}
+              onChange={content => update({ content })}
+            />
+          }
+        >
           <MessageFields
             value={state.content}
             onChange={content => update({ content })}
@@ -203,7 +384,56 @@ export function AnnouncementPublisher({
           />
         </FormSection>
 
-        <FormSection step={2} title={t('announce.section.who')}>
+        <FormSection title={t('announce.section.who')}>
+          <div className={styles.grid2}>
+            <FieldSet legend={t('announce.audience')}>
+              <Segmented
+                name='nk-audience'
+                label={t('announce.audience')}
+                value={state.audienceType}
+                options={[
+                  { value: 'EVERYONE', label: t('announce.audience.EVERYONE') },
+                  { value: 'ROLE', label: t('announce.audience.ROLE') },
+                ]}
+                onChange={audienceType => update({ audienceType })}
+              />
+            </FieldSet>
+            {state.audienceType === 'ROLE' && (
+              <Field
+                label={t('announce.role')}
+                required
+                error={visible.audience ? t('announce.role.error') : undefined}
+              >
+                {({ id, describedBy, invalid }) =>
+                  admin.roles.length > 0 ? (
+                    <Dropdown
+                      id={id}
+                      describedBy={describedBy}
+                      invalid={invalid}
+                      value={state.audienceValue}
+                      placeholder={t('announce.role.placeholder')}
+                      options={admin.roles.map(r => ({
+                        value: r.code,
+                        label: r.label,
+                      }))}
+                      onChange={audienceValue => update({ audienceValue })}
+                    />
+                  ) : (
+                    <TextInput
+                      id={id}
+                      aria-describedby={describedBy}
+                      invalid={invalid}
+                      value={state.audienceValue}
+                      spellCheck={false}
+                      onChange={event =>
+                        update({ audienceValue: event.target.value })
+                      }
+                    />
+                  )
+                }
+              </Field>
+            )}
+          </div>
           <Field
             label={t('announce.category')}
             required
@@ -216,6 +446,7 @@ export function AnnouncementPublisher({
                 describedBy={describedBy}
                 invalid={invalid}
                 value={state.category}
+                placeholder={t('compose.category.placeholder')}
                 options={announcementCategories.map(c => ({
                   value: c.code,
                   label: c.label,
@@ -225,96 +456,77 @@ export function AnnouncementPublisher({
               />
             )}
           </Field>
-          <FieldSet legend={t('announce.audience')}>
-            <Segmented
-              name='nk-audience'
-              value={state.audienceType}
-              options={[
-                { value: 'EVERYONE', label: t('announce.audience.EVERYONE') },
-                { value: 'ROLE', label: t('announce.audience.ROLE') },
-              ]}
-              onChange={audienceType => update({ audienceType })}
-            />
-          </FieldSet>
-          {state.audienceType === 'ROLE' && (
-            <Field
-              label={t('announce.role')}
-              required
-              error={visible.audience ? t('announce.role.error') : undefined}
-            >
-              {({ id, describedBy, invalid }) =>
-                admin.roles.length > 0 ? (
-                  <Dropdown
-                    id={id}
-                    describedBy={describedBy}
-                    invalid={invalid}
-                    value={state.audienceValue}
-                    placeholder={t('announce.role.placeholder')}
-                    options={admin.roles.map(r => ({
-                      value: r.code,
-                      label: r.label,
-                    }))}
-                    onChange={audienceValue => update({ audienceValue })}
-                  />
-                ) : (
-                  <TextInput
-                    id={id}
-                    aria-describedby={describedBy}
-                    invalid={invalid}
-                    value={state.audienceValue}
-                    spellCheck={false}
-                    onChange={event =>
-                      update({ audienceValue: event.target.value })
-                    }
-                  />
-                )
-              }
-            </Field>
-          )}
+          <div
+            className={styles.presentations}
+            role='group'
+            aria-label={t('announce.presentation')}
+          >
+            {SHOWN.map(kind => (
+              <div
+                key={kind}
+                className={styles.presentation}
+                data-active={presentation === kind || undefined}
+                aria-current={presentation === kind ? 'true' : undefined}
+              >
+                {PRESENTATION_ICON[kind]}
+                {t(`presentation.${kind}`)}
+              </div>
+            ))}
+          </div>
+          <span className={styles.fieldHint}>
+            {presentation === 'none'
+              ? t('announce.presentation.none')
+              : t('announce.presentation.hint')}
+          </span>
         </FormSection>
 
-        <FormSection step={3} title={t('announce.section.when')}>
-          <Segmented
-            name='nk-from'
-            value={state.fromNow ? 'now' : 'at'}
-            options={[
-              { value: 'now', label: t('announce.from.now') },
-              { value: 'at', label: t('announce.from.at') },
-            ]}
-            onChange={value =>
-              update({
-                fromNow: value === 'now',
-                visibleFrom:
-                  value === 'at' && !state.visibleFrom
-                    ? toLocalInput(new Date(Date.now() + 60 * 60_000))
-                    : state.visibleFrom,
-              })
-            }
-          />
+        <FormSection title={t('announce.section.when')}>
           <div className={styles.grid2}>
-            {!state.fromNow && (
-              <Field
-                label={t('announce.from')}
-                required
-                error={
-                  visible.visibleFrom ? t('announce.from.error') : undefined
-                }
-              >
-                {({ id, describedBy, invalid }) => (
-                  <TextInput
-                    id={id}
-                    type='datetime-local'
-                    className={styles.dateInput}
-                    aria-describedby={describedBy}
-                    invalid={invalid}
-                    value={state.visibleFrom}
-                    onChange={event =>
-                      update({ visibleFrom: event.target.value })
-                    }
-                  />
-                )}
-              </Field>
-            )}
+            <div className={styles.stack}>
+              <FieldSet legend={t('announce.from')}>
+                <Segmented
+                  name='nk-from'
+                  label={t('announce.from')}
+                  value={state.fromNow ? 'now' : 'at'}
+                  options={[
+                    { value: 'now', label: t('announce.from.now') },
+                    { value: 'at', label: t('announce.from.at') },
+                  ]}
+                  onChange={value =>
+                    update({
+                      fromNow: value === 'now',
+                      visibleFrom:
+                        value === 'at' && !state.visibleFrom
+                          ? toLocalInput(new Date(Date.now() + 60 * 60_000))
+                          : state.visibleFrom,
+                    })
+                  }
+                />
+              </FieldSet>
+              {!state.fromNow && (
+                <Field
+                  label={t('announce.from.date')}
+                  required
+                  error={
+                    visible.visibleFrom ? t('announce.from.error') : undefined
+                  }
+                >
+                  {({ id, describedBy, invalid }) => (
+                    <TextInput
+                      id={id}
+                      type='datetime-local'
+                      className={styles.dateInput}
+                      aria-describedby={describedBy}
+                      invalid={invalid}
+                      value={state.visibleFrom}
+                      onChange={event =>
+                        update({ visibleFrom: event.target.value })
+                      }
+                    />
+                  )}
+                </Field>
+              )}
+            </div>
             <Field
               label={t('announce.until')}
               required
@@ -339,54 +551,109 @@ export function AnnouncementPublisher({
         </FormSection>
 
         {publish.isError && <ErrorNotice error={publish.error} t={t} />}
-
-        {confirming ? (
-          <div className={styles.confirm} role='alertdialog' aria-modal='false'>
-            <strong>{t('announce.confirm.title')}</strong>
-            <span>
-              {state.audienceType === 'EVERYONE'
-                ? t('announce.confirm.everyone')
-                : t('announce.confirm.role', {
-                    role: labels.role(state.audienceValue),
-                  })}{' '}
-              {t('announce.confirm.final')}
-            </span>
-            <div className={styles.inlineRow}>
-              <Button
-                variant='primary'
-                disabled={publish.isPending}
-                onClick={doPublish}
-              >
-                {publish.isPending
-                  ? t('announce.publishing')
-                  : t('announce.publish')}
+        {preview.error !== null && (
+          <ErrorNotice
+            error={preview.error}
+            t={t}
+            action={
+              <Button size='sm' onClick={preview.clear}>
+                {t('preview.close')}
               </Button>
-              <Button
-                disabled={publish.isPending}
-                onClick={() => setConfirming(false)}
-              >
-                {t('announce.confirm.back')}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className={styles.submitBar}>
-            <span className={styles.muted}>
-              {showErrors && !valid ? t('compose.fixErrors') : ''}
-            </span>
-            <Button type='submit' variant='primary'>
-              {t('announce.publish')}
-            </Button>
-          </div>
+            }
+          />
+        )}
+        {preview.none && (
+          <Notice tone='warning' title={t('announce.presentation.none')} />
         )}
       </form>
 
-      <TemplatePreview
-        templateKey={preview.templateKey}
-        variables={preview.variables}
-        channels={['IN_APP']}
-        idle={previewIdle}
-      />
+      <div className={styles.actionBar} ref={barRef}>
+        <span className={styles.actionSummary}>
+          {showErrors && !valid ? (
+            <span className={styles.fieldError}>{t('compose.fixErrors')}</span>
+          ) : (
+            [
+              audienceText,
+              presentation !== 'none'
+                ? t(`presentation.${presentation}.short`)
+                : null,
+              until ? t('announce.summary.until', { date: until }) : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')
+          )}
+        </span>
+        <PreviewButton
+          channels={['IN_APP']}
+          busy={preview.busy}
+          disabledReason={
+            admin.permissions.preview ? undefined : t('preview.noAccess')
+          }
+          onPick={() => {
+            if (!contentValid) {
+              setShowContentErrors(true);
+              revealFirstError(rootRef.current);
+              return;
+            }
+            void preview.run(state.category, state.visibleUntil);
+          }}
+        />
+        <Button
+          variant='primary'
+          size='lg'
+          onClick={() => {
+            setShowErrors(true);
+            if (valid) setConfirming(true);
+            else revealFirstError(rootRef.current);
+          }}
+        >
+          {t('announce.publish')}
+        </Button>
+      </div>
+
+      <Dialog
+        open={confirming}
+        onClose={publish.isPending ? undefined : () => setConfirming(false)}
+        labelledBy={confirmTitle}
+        role='alertdialog'
+        width={440}
+        initialFocus={publishRef}
+      >
+        <div className={styles.confirmHead}>
+          <span className={styles.confirmIcon} aria-hidden='true'>
+            <Icon name='send' size={18} />
+          </span>
+          <h2 id={confirmTitle} className={styles.confirmTitle}>
+            {t('announce.confirm.title')}
+          </h2>
+        </div>
+        <p className={styles.confirmText}>
+          {state.audienceType === 'EVERYONE'
+            ? t('announce.confirm.everyone')
+            : t('announce.confirm.role', {
+                role: labels.role(state.audienceValue),
+              })}{' '}
+          {t('announce.confirm.final')}
+        </p>
+        <div className={styles.confirmActions}>
+          <Button
+            disabled={publish.isPending}
+            onClick={() => setConfirming(false)}
+          >
+            {t('announce.confirm.back')}
+          </Button>
+          <Button
+            ref={publishRef}
+            variant='primary'
+            disabled={publish.isPending}
+            onClick={doPublish}
+          >
+            {publish.isPending
+              ? t('announce.publishing')
+              : t('announce.publish')}
+          </Button>
+        </div>
+      </Dialog>
     </div>
   );
 }
@@ -517,49 +784,56 @@ function CorrectionForm({
   });
   const [showErrors, setShowErrors] = useState(false);
   const errors = validateContent(content, freeformKey);
-  const preview = useMemo(
-    () => contentToTemplate(content, freeformKey),
-    [content, freeformKey]
-  );
+  const preview = useAnnouncementPreview(content);
 
   return (
     <div className={styles.correction}>
+      <div className={styles.correctionHead}>
+        <span className={styles.sectionTitle}>{t('announce.correct')}</span>
+        <MessageModeSwitch value={content} onChange={setContent} />
+      </div>
       <p className={styles.muted}>{t('announce.correct.hint')}</p>
-      <div className={styles.workspace}>
-        <div className={styles.stack}>
-          <MessageFields
-            value={content}
-            onChange={setContent}
-            errors={showErrors ? errors : {}}
-          />
-          {correct.isError && <ErrorNotice error={correct.error} t={t} />}
-          <div className={styles.inlineRow}>
-            <Button
-              variant='primary'
-              disabled={correct.isPending}
-              onClick={() => {
-                setShowErrors(true);
-                if (Object.keys(errors).length) return;
-                // The audience and the window go back unchanged.
-                const next = { ...request, ...preview };
-                correct.mutate(
-                  { id, request: next },
-                  { onSuccess: () => onDone(next) }
-                );
-              }}
-            >
-              {t('announce.correct.save')}
-            </Button>
-            <Button disabled={correct.isPending} onClick={onCancel}>
-              {t('announce.correct.cancel')}
-            </Button>
-          </div>
-        </div>
-        <TemplatePreview
-          templateKey={preview.templateKey}
-          variables={preview.variables}
-          channels={['IN_APP']}
-        />
+      <MessageFields
+        value={content}
+        onChange={setContent}
+        errors={showErrors ? errors : {}}
+      />
+      {correct.isError && <ErrorNotice error={correct.error} t={t} />}
+      {preview.error !== null && <ErrorNotice error={preview.error} t={t} />}
+      <div className={styles.inlineRow}>
+        <Button
+          variant='primary'
+          disabled={correct.isPending}
+          onClick={() => {
+            setShowErrors(true);
+            if (Object.keys(errors).length) return;
+            // The audience and the window go back unchanged.
+            const next = {
+              ...request,
+              ...contentToTemplate(content, freeformKey),
+            };
+            correct.mutate(
+              { id, request: next },
+              { onSuccess: () => onDone(next) }
+            );
+          }}
+        >
+          {t('announce.correct.save')}
+        </Button>
+        <Button
+          icon='eye'
+          disabled={preview.busy || !admin.permissions.preview}
+          onClick={() => {
+            setShowErrors(true);
+            if (Object.keys(errors).length) return;
+            void preview.run(request.category, request.visibleUntil);
+          }}
+        >
+          {t('preview.title')}
+        </Button>
+        <Button variant='ghost' disabled={correct.isPending} onClick={onCancel}>
+          {t('announce.correct.cancel')}
+        </Button>
       </div>
     </div>
   );

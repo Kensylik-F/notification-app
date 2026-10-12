@@ -21,10 +21,10 @@ export const MESSAGES_RU = {
   'inbox.unreadMark': 'Не прочитано',
   'inbox.untitled': 'Уведомление',
   'inbox.total': 'Всего: {count}',
-  'item.dismiss': 'Скрыть',
+  'item.dismiss': 'Закрыть',
   'item.expand': 'Показать текст',
   'item.collapse': 'Свернуть',
-  'item.openSeparately': 'Открыть',
+  'item.openSeparately': 'Открыть на отдельной странице',
   'inbox.dismissAll': 'Закрыть все',
   'inbox.dismissAll.confirm': 'Закрыть все уведомления?',
   'inbox.dismissAll.confirmCount': 'Закрыть все уведомления ({count})?',
@@ -67,6 +67,26 @@ export const MESSAGES_RU = {
   'time.justNow': 'только что',
   'error.generic': 'Что-то пошло не так. Попробуйте ещё раз.',
   'error.traceId': 'Код обращения: {traceId}',
+  'announcement.header': 'Объявления · {count}',
+  'announcement.readMore': 'Подробнее',
+  'announcement.dismissLabel': 'Закрыть объявление',
+  'announcement.dismissForever': 'Больше не показывать',
+  'reader.close': 'Закрыть',
+  'toast.newNotification': 'Новое уведомление',
+  'toast.open': 'Открыть',
+  'toast.close': 'Закрыть уведомление',
+  'preview.chip': 'Предпросмотр',
+  'preview.closePreview': 'Закрыть предпросмотр',
+  'center.tab.inbox': 'Входящие',
+  'center.tab.announcements': 'Объявления',
+  'center.unreadOnly': 'Только непрочитанные',
+  'center.back': 'К списку',
+  'center.pick': 'Выберите уведомление',
+  'center.pickAnnouncement': 'Выберите объявление',
+  'center.pickNote': 'Текст откроется здесь.',
+  'feed.dismissedEarlier': 'Закрытые ранее',
+  'feed.closedOn': 'Закрыто {date}',
+  'feed.untilPast': 'Показывалось до {date}',
   ...ADMIN_MESSAGES_RU,
 } as const;
 
@@ -93,7 +113,7 @@ export const MESSAGES_EN: Messages = {
   'item.dismiss': 'Dismiss',
   'item.expand': 'Show text',
   'item.collapse': 'Collapse',
-  'item.openSeparately': 'Open',
+  'item.openSeparately': 'Open on a separate page',
   'inbox.dismissAll': 'Dismiss all',
   'inbox.dismissAll.confirm': 'Dismiss all notifications?',
   'inbox.dismissAll.confirmCount': 'Dismiss all notifications ({count})?',
@@ -137,6 +157,26 @@ export const MESSAGES_EN: Messages = {
   'time.justNow': 'just now',
   'error.generic': 'Something went wrong. Please try again.',
   'error.traceId': 'Reference: {traceId}',
+  'announcement.header': 'Announcements · {count}',
+  'announcement.readMore': 'Read more',
+  'announcement.dismissLabel': 'Close the announcement',
+  'announcement.dismissForever': 'Do not show again',
+  'reader.close': 'Close',
+  'toast.newNotification': 'New notification',
+  'toast.open': 'Open',
+  'toast.close': 'Close the notification',
+  'preview.chip': 'Preview',
+  'preview.closePreview': 'Close the preview',
+  'center.tab.inbox': 'Inbox',
+  'center.tab.announcements': 'Announcements',
+  'center.unreadOnly': 'Unread only',
+  'center.back': 'Back to the list',
+  'center.pick': 'Choose a notification',
+  'center.pickAnnouncement': 'Choose an announcement',
+  'center.pickNote': 'Its text opens here.',
+  'feed.dismissedEarlier': 'Closed earlier',
+  'feed.closedOn': 'Closed on {date}',
+  'feed.untilPast': 'Was shown until {date}',
   ...ADMIN_MESSAGES_EN,
 };
 
@@ -160,4 +200,24 @@ export function createTranslate(
 ): Translate {
   const dictionary = { ...dictionaryFor(locale), ...overrides };
   return (key, vars) => interpolate(dictionary[key], vars);
+}
+
+/**
+ * Picks the plural form from `forms` - "one|few|many" for Russian,
+ * "one|other" for English - by the locale's plural rules.
+ */
+export function plural(forms: string, count: number, locale: string): string {
+  const list = forms.split('|');
+  let rule: Intl.LDMLPluralRule = 'other';
+  try {
+    rule = new Intl.PluralRules(locale).select(count);
+  } catch {
+    // An unknown locale: fall through to the last form.
+  }
+  if (list.length >= 3) {
+    return (
+      (rule === 'one' ? list[0] : rule === 'few' ? list[1] : list[2]) ?? ''
+    );
+  }
+  return (rule === 'one' ? list[0] : list[1]) ?? list[0] ?? '';
 }

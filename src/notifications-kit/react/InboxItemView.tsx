@@ -3,10 +3,18 @@ import type { ReactNode } from 'react';
 
 import { isNotificationsError } from '../core';
 import type { InboxEntry } from '../core';
+import { MessageBody } from './content';
 import { useNotificationsContext } from './context';
 import { formatDateTime } from './format';
 import { useInboxCommands, useInboxItem } from './hooks';
-import { Button, HtmlFrame, Spinner, StateBlock, cx } from './primitives';
+import {
+  Button,
+  Chip,
+  IconButton,
+  Spinner,
+  StateBlock,
+  cx,
+} from './primitives';
 import styles from './styles.module.css';
 
 export interface InboxItemViewProps {
@@ -15,22 +23,31 @@ export interface InboxItemViewProps {
   autoMarkRead?: boolean;
   /** Called after the item has been dismissed (e.g. to go back). */
   onDismissed?: (entry: InboxEntry) => void;
+  /** Takes over "Dismiss": the caller sends the command (to animate the
+   *  list first, say). */
+  onDismiss?: (entry: InboxEntry) => void;
+  /** Shows "Open on a separate page" next to "Dismiss". */
+  onOpenSeparately?: (entry: InboxEntry) => void;
   /** Extra controls next to "Dismiss". */
   actions?: ReactNode;
   /** Render the subject as the heading. Turn off when the host page already
    *  shows it in its own header (see `useInboxItemTitle`). Default: `true`. */
   showSubject?: boolean;
+  className?: string;
 }
 
-/** One notification with its rendered subject and body. */
+/** One notification: subject, date, "Important", the body; "Dismiss". */
 export function InboxItemView({
   id,
   autoMarkRead = true,
   onDismissed,
+  onDismiss,
+  onOpenSeparately,
   actions,
   showSubject = true,
+  className,
 }: InboxItemViewProps) {
-  const { t, locale, renderHtml, describeItem } = useNotificationsContext();
+  const { t, locale, describeItem } = useNotificationsContext();
   const item = useInboxItem(id);
   const { markRead, dismiss } = useInboxCommands();
 
@@ -49,8 +66,8 @@ export function InboxItemView({
 
   if (item.isPending) {
     return (
-      <div className={cx(styles.root, styles.state)}>
-        <Spinner label={t('bell.title')} />
+      <div className={cx(styles.root, styles.state, className)}>
+        <Spinner label={t('item.loading')} />
       </div>
     );
   }
@@ -60,7 +77,7 @@ export function InboxItemView({
     const notFound =
       isNotificationsError(item.error) && item.error.status === 404;
     return (
-      <div className={styles.root}>
+      <div className={cx(styles.root, className)}>
         <StateBlock
           title={notFound ? t('item.notFound') : t('item.error')}
           note={
@@ -87,50 +104,54 @@ export function InboxItemView({
   const subject = entry.subject ?? description?.title ?? t('inbox.untitled');
   const categoryLabel = entry.subject ? description?.title : description?.hint;
   const received = formatDateTime(entry.createdAt, locale);
-  const html = entry.bodyHtml ?? null;
+
+  const runDismiss = () => {
+    if (onDismiss) {
+      onDismiss(entry);
+      return;
+    }
+    dismiss.mutate(entry.id, { onSuccess: answer => onDismissed?.(answer) });
+  };
 
   return (
-    <article className={cx(styles.root, styles.item)}>
-      <header className={styles.itemHeading}>
-        {showSubject && <h2 className={styles.itemSubject}>{subject}</h2>}
-        <div className={styles.itemMeta}>
-          {entry.priority === 'HIGH' && (
-            <span className={styles.tag}>{t('priority.HIGH')}</span>
-          )}
-          {categoryLabel && <span>{categoryLabel}</span>}
-          {received && <span>{t('item.received', { date: received })}</span>}
+    <article className={cx(styles.root, styles.reader, className)}>
+      <header className={styles.readerHead}>
+        <div className={styles.readerHeading}>
+          {showSubject && <h2 className={styles.readerTitle}>{subject}</h2>}
+          <div className={styles.readerMeta}>
+            {received && <span>{received}</span>}
+            {entry.priority === 'HIGH' && (
+              <Chip tone='danger'>{t('priority.HIGH')}</Chip>
+            )}
+            {categoryLabel && <Chip>{categoryLabel}</Chip>}
+          </div>
         </div>
-      </header>
-      {html !== null ? (
-        <div className={styles.itemBody}>
-          {renderHtml ? (
-            renderHtml(html, entry)
-          ) : (
-            <HtmlFrame html={html} title={subject} />
-          )}
-        </div>
-      ) : entry.bodyText ? (
-        <p className={cx(styles.bodyText, styles.itemBody)}>{entry.bodyText}</p>
-      ) : (
-        <p className={styles.stateNote}>{t('item.noBody')}</p>
-      )}
-      {(actions || !entry.dismissed) && (
-        <footer className={styles.itemActions}>
+        <div className={styles.readerActions}>
           {actions}
+          {onOpenSeparately && (
+            <IconButton
+              icon='external'
+              label={t('item.openSeparately')}
+              onClick={() => onOpenSeparately(entry)}
+            />
+          )}
           {!entry.dismissed && (
             <Button
+              icon='close'
               disabled={dismiss.isPending}
-              onClick={() =>
-                dismiss.mutate(entry.id, {
-                  onSuccess: answer => onDismissed?.(answer),
-                })
-              }
+              onClick={runDismiss}
             >
               {t('item.dismiss')}
             </Button>
           )}
-        </footer>
-      )}
+        </div>
+      </header>
+      <MessageBody
+        key={entry.id}
+        source={entry}
+        title={subject}
+        className={styles.readerBody}
+      />
     </article>
   );
 }

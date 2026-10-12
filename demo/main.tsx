@@ -3,20 +3,24 @@ import { StrictMode, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import {
-  AnnouncementFeed,
   AnnouncementPublisher,
   AnnouncementsHost,
   DeliveryLog,
   InboxItemView,
-  InboxPanel,
   NotificationBell,
+  NotificationCenter,
   NotificationComposer,
   NotificationsProvider,
+  Tabs,
   createNotificationsApi,
   notificationKeys,
   presentationByCategory,
 } from '../src/notifications-kit';
-import type { AdminOptions, InboxEntry } from '../src/notifications-kit';
+import type {
+  AdminOptions,
+  InboxEntry,
+  NotificationCenterTab,
+} from '../src/notifications-kit';
 import { searchPeople } from './mock-admin';
 import { createMockService } from './mock-service';
 import './demo.css';
@@ -66,23 +70,38 @@ const ADMIN: AdminOptions = {
     { code: 'digest', label: 'Новости', categoryClass: 'MARKETING' },
     { code: 'platform-release', label: 'Выпуск', announcement: true },
     { code: 'platform-incident', label: 'Работы и сбои', announcement: true },
+    { code: 'platform-tip', label: 'Советы', announcement: true },
   ],
   roles: [
-    { code: 'MODERATOR', label: 'Модераторы' },
-    { code: 'SOURCE_OWNER', label: 'Владельцы источников' },
-    { code: 'ANALYST', label: 'Аналитики' },
+    { code: 'MODERATOR', label: 'Модератор' },
+    { code: 'SOURCE_OWNER', label: 'Владелец источника' },
+    { code: 'ANALYST', label: 'Аналитик' },
   ],
   // The deployment has service-templates/custom-message.
   freeformTemplateKey: 'custom-message',
   searchRecipients: searchPeople,
 };
 
-type View = 'inbox' | 'compose' | 'log' | 'announce';
-const VIEWS: Array<[View, string]> = [
-  ['inbox', 'Уведомления'],
-  ['compose', 'Рассылка'],
-  ['log', 'История доставок'],
-  ['announce', 'Объявления'],
+type View = 'inbox' | 'compose' | 'announce';
+const NAV: Array<{ section: string; items: Array<[View | null, string]> }> = [
+  {
+    section: 'Личный кабинет',
+    items: [
+      [null, 'Профиль'],
+      ['inbox', 'Уведомления'],
+    ],
+  },
+  {
+    section: 'Администрирование',
+    items: [
+      [null, 'Источники'],
+      [null, 'Применимость'],
+      [null, 'Чёрный список'],
+      [null, 'Выгрузки'],
+      ['compose', 'Рассылки'],
+      ['announce', 'Объявления'],
+    ],
+  },
 ];
 
 function App() {
@@ -90,19 +109,32 @@ function App() {
   const [view, setView] = useState<View>(
     () => (params.get('view') as View | null) ?? 'inbox'
   );
-  const [openId, setOpenId] = useState<string | null>(() => params.get('item'));
-  const [requestId, setRequestId] = useState<string | undefined>();
-  const [feed, setFeed] = useState<'inbox' | 'announcements'>(() =>
-    params.get('feed') === 'announcements' ? 'announcements' : 'inbox'
+  const [tab, setTab] = useState<NotificationCenterTab>(() =>
+    params.get('tab') === 'announcements' ? 'announcements' : 'inbox'
   );
+  const [selected, setSelected] = useState<string | null>(() =>
+    params.get('item')
+  );
+  const [page, setPage] = useState<string | null>(() => params.get('page'));
+  const [mailTab, setMailTab] = useState<'new' | 'log'>(() =>
+    params.get('mail') === 'log' ? 'log' : 'new'
+  );
+  const [requestId, setRequestId] = useState<string | undefined>();
   const [dark, setDark] = useState(() => params.get('theme') === 'dark');
+  const [agent, setAgent] = useState(() => params.get('ai') === 'open');
   const headerRef = useRef<HTMLElement>(null);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
 
   const admin = useMemo(() => ADMIN, []);
   const go = (next: View) => {
-    setOpenId(null);
+    setPage(null);
     setView(next);
+  };
+  const openItem = (entry: InboxEntry) => {
+    setPage(null);
+    setView('inbox');
+    setTab('inbox');
+    setSelected(entry.id);
   };
 
   return (
@@ -116,13 +148,13 @@ function App() {
     >
       <div className='shell'>
         <header className='header' ref={headerRef}>
-          <span className='brand'>notifications-kit demo</span>
+          <span className='brand'>OneCheck · demo</span>
           <button
             className='demoButton'
             onClick={() => {
               service.push('Новое важное уведомление', 'HIGH');
               void queryClient.invalidateQueries({
-                queryKey: notificationKeys.inbox(),
+                queryKey: notificationKeys.unreadCount(),
               });
             }}
           >
@@ -133,94 +165,117 @@ function App() {
           </button>
           <NotificationBell
             anchorRef={headerRef}
-            onOpenItem={entry => {
-              setView('inbox');
-              setOpenId(entry.id);
-            }}
+            onOpenItem={openItem}
             onOpenAll={() => go('inbox')}
           />
+          <span className='avatar' aria-hidden='true' />
         </header>
         <div className='body'>
-          <nav className='nav' aria-label='Разделы'>
-            {VIEWS.map(([id, label]) => (
-              <button
-                key={id}
-                className='navItem'
-                aria-current={view === id ? 'page' : undefined}
-                onClick={() => go(id)}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-          <main className='main'>
-            {view === 'inbox' && openId && (
-              <>
-                <button
-                  className='demoButton back'
-                  onClick={() => setOpenId(null)}
-                >
-                  ← К списку
-                </button>
-                <InboxItemView
-                  id={openId}
-                  onDismissed={() => setOpenId(null)}
-                />
-              </>
-            )}
-            {view === 'inbox' && !openId && (
-              <>
-                <h1 className='pageTitle'>Уведомления</h1>
-                <div className='pageTabs' role='tablist'>
-                  <button
-                    role='tab'
-                    aria-selected={feed === 'inbox'}
-                    onClick={() => setFeed('inbox')}
-                  >
-                    Уведомления
-                  </button>
-                  <button
-                    role='tab'
-                    aria-selected={feed === 'announcements'}
-                    onClick={() => setFeed('announcements')}
-                  >
-                    Объявления
-                  </button>
+          <div className='work' data-notifications-anchor>
+            <nav className='nav' aria-label='Разделы'>
+              {NAV.map(group => (
+                <div key={group.section}>
+                  <div className='navHead'>{group.section}</div>
+                  {group.items.map(([id, label]) => (
+                    <button
+                      key={label}
+                      className='navItem'
+                      aria-current={id && view === id ? 'page' : undefined}
+                      disabled={!id}
+                      onClick={() => id && go(id)}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
-                {feed === 'inbox' ? (
-                  <InboxPanel onOpenItem={entry => setOpenId(entry.id)} />
-                ) : (
-                  <AnnouncementFeed />
-                )}
-              </>
-            )}
-            {view === 'compose' && (
-              <>
-                <h1 className='pageTitle'>Новая рассылка</h1>
-                <NotificationComposer
-                  onOpenDeliveries={id => {
-                    setRequestId(id);
-                    setView('log');
-                  }}
-                />
-              </>
-            )}
-            {view === 'log' && (
-              <>
-                <h1 className='pageTitle'>История доставок</h1>
-                <DeliveryLog key={requestId ?? 'all'} requestId={requestId} />
-              </>
-            )}
-            {view === 'announce' && (
-              <>
-                <h1 className='pageTitle'>Объявления</h1>
-                <AnnouncementPublisher />
-              </>
-            )}
-          </main>
+              ))}
+            </nav>
+            <main className='main'>
+              {view === 'inbox' && page && (
+                <>
+                  <button className='crumbLink' onClick={() => setPage(null)}>
+                    ← К списку уведомлений
+                  </button>
+                  <InboxItemView id={page} onDismissed={() => setPage(null)} />
+                </>
+              )}
+              {view === 'inbox' && !page && (
+                <>
+                  <p className='crumbs'>Личный кабинет / Уведомления</p>
+                  <NotificationCenter
+                    title='Уведомления'
+                    tab={tab}
+                    onTabChange={setTab}
+                    selectedId={selected}
+                    onSelectedChange={setSelected}
+                    onOpenItem={entry => setPage(entry.id)}
+                  />
+                </>
+              )}
+              {view === 'compose' && (
+                <>
+                  <p className='crumbs'>Администрирование / Рассылки</p>
+                  <h1 className='pageTitle'>Рассылки</h1>
+                  <Tabs
+                    value={mailTab}
+                    onChange={setMailTab}
+                    items={[
+                      { value: 'new', label: 'Новая рассылка' },
+                      { value: 'log', label: 'История доставок' },
+                    ]}
+                  />
+                  {mailTab === 'new' ? (
+                    <NotificationComposer
+                      onOpenDeliveries={id => {
+                        setRequestId(id);
+                        setMailTab('log');
+                      }}
+                    />
+                  ) : (
+                    <div className='pagePad'>
+                      <DeliveryLog
+                        key={requestId ?? 'all'}
+                        requestId={requestId}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+              {view === 'announce' && (
+                <>
+                  <p className='crumbs'>Администрирование / Объявления</p>
+                  <h1 className='pageTitle'>Новое объявление</h1>
+                  <p className='pageNote'>
+                    Видно всем выбранным пользователям в кабинете до даты
+                    окончания.
+                  </p>
+                  <AnnouncementPublisher />
+                </>
+              )}
+            </main>
+          </div>
+          {agent ? (
+            <aside className='agent' aria-label='AI агент'>
+              <div className='agentHead'>
+                <span>AI Агент</span>
+                <button className='demoButton' onClick={() => setAgent(false)}>
+                  Свернуть
+                </button>
+              </div>
+              <div className='agentInput'>Задайте вопрос агенту…</div>
+            </aside>
+          ) : (
+            <button
+              className='agentRail'
+              onClick={() => setAgent(true)}
+              aria-label='Открыть AI агента'
+            >
+              AI Агент
+            </button>
+          )}
         </div>
       </div>
-      <AnnouncementsHost toastDurationMs={8000} />
+      <AnnouncementsHost onOpenItem={openItem} />
     </NotificationsProvider>
   );
 }

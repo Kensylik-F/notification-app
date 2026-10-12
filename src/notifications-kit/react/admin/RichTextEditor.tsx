@@ -9,9 +9,8 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { ClipboardEvent, ReactNode } from 'react';
 
 import { useNotificationsContext } from '../context';
-import { Button, cx } from '../primitives';
+import { Button, Icon, cx } from '../primitives';
 import styles from './admin.module.css';
-import { Segmented } from './forms';
 import { sanitizeHtml } from './richtext';
 
 type Command =
@@ -90,7 +89,27 @@ export function RichTextEditor({
   >({});
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
+  const [blockMenu, setBlockMenu] = useState(false);
+  const blockRef = useRef<HTMLDivElement>(null);
   const linkInputId = useId();
+
+  useEffect(() => {
+    if (!blockMenu) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!blockRef.current?.contains(event.target as Node)) {
+        setBlockMenu(false);
+      }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setBlockMenu(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [blockMenu]);
 
   // Outside changes (reset, the HTML tab) are written into the area; our own
   // edits are not, so the caret does not jump.
@@ -148,8 +167,20 @@ export function RichTextEditor({
     refreshStates();
   };
 
-  const toggleBlock = (tag: 'h2' | 'blockquote') =>
-    run('formatBlock', states[tag] ? '<p>' : `<${tag}>`);
+  const setBlock = (tag: 'p' | 'h2' | 'blockquote') => {
+    setBlockMenu(false);
+    run('formatBlock', `<${tag}>`);
+  };
+  const block: 'p' | 'h2' | 'blockquote' = states.h2
+    ? 'h2'
+    : states.blockquote
+      ? 'blockquote'
+      : 'p';
+  const blockLabel = {
+    p: t('editor.paragraph'),
+    h2: t('editor.heading'),
+    blockquote: t('editor.quote'),
+  };
 
   const openLink = () => {
     const selection = document.getSelection();
@@ -214,13 +245,37 @@ export function RichTextEditor({
             role='toolbar'
             aria-label={t('editor.toolbar')}
           >
-            <ToolButton
-              label={t('editor.heading')}
-              active={states.h2}
-              onClick={() => toggleBlock('h2')}
-            >
-              <span className={styles.toolGlyph}>H</span>
-            </ToolButton>
+            <div ref={blockRef} className={styles.blockPicker}>
+              <button
+                type='button'
+                className={cx(styles.toolButton, styles.toolWide)}
+                aria-haspopup='menu'
+                aria-expanded={blockMenu}
+                onPointerDown={event => event.preventDefault()}
+                onClick={() => setBlockMenu(v => !v)}
+              >
+                {blockLabel[block]}
+                <Icon name='chevron' size={12} weight={2.4} />
+              </button>
+              {blockMenu && (
+                <div className={styles.blockMenu} role='menu'>
+                  {(['p', 'h2', 'blockquote'] as const).map(tag => (
+                    <button
+                      key={tag}
+                      type='button'
+                      role='menuitemradio'
+                      aria-checked={block === tag}
+                      className={styles.blockOption}
+                      data-tag={tag}
+                      onPointerDown={event => event.preventDefault()}
+                      onClick={() => setBlock(tag)}
+                    >
+                      {blockLabel[tag]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <span className={styles.toolSep} aria-hidden='true' />
             <ToolButton
               label={t('editor.bold')}
@@ -234,7 +289,7 @@ export function RichTextEditor({
               active={states.italic}
               onClick={() => run('italic')}
             >
-              <em className={styles.toolGlyph}>I</em>
+              <em className={cx(styles.toolGlyph, styles.toolSerif)}>I</em>
             </ToolButton>
             <ToolButton
               label={t('editor.underline')}
@@ -262,9 +317,9 @@ export function RichTextEditor({
                 aria-hidden='true'
               >
                 <path d='M9 6h11M9 12h11M9 18h11' />
-                <circle cx='4.5' cy='6' r='1.2' />
-                <circle cx='4.5' cy='12' r='1.2' />
-                <circle cx='4.5' cy='18' r='1.2' />
+                <circle cx='4' cy='6' r='1' />
+                <circle cx='4' cy='12' r='1' />
+                <circle cx='4' cy='18' r='1' />
               </svg>
             </ToolButton>
             <ToolButton
@@ -277,21 +332,7 @@ export function RichTextEditor({
                 className={styles.toolIcon}
                 aria-hidden='true'
               >
-                <path d='M10 6h10M10 12h10M10 18h10' />
-                <path d='M4 4.5h1.5V9M3.5 9h3M3.5 14.5c.4-.6 1-.9 1.6-.9.9 0 1.5.6 1.5 1.3 0 1.3-3.1 2.1-3.1 3.6h3.2' />
-              </svg>
-            </ToolButton>
-            <ToolButton
-              label={t('editor.quote')}
-              active={states.blockquote}
-              onClick={() => toggleBlock('blockquote')}
-            >
-              <svg
-                viewBox='0 0 24 24'
-                className={styles.toolIcon}
-                aria-hidden='true'
-              >
-                <path d='M5 6v12M9 8h10M9 12h10M9 16h6' />
+                <path d='M10 6h10M10 12h10M10 18h10M4 5h1v4M4 15h2l-2 3h2' />
               </svg>
             </ToolButton>
             <ToolButton label={t('editor.link')} onClick={openLink}>
@@ -300,10 +341,9 @@ export function RichTextEditor({
                 className={styles.toolIcon}
                 aria-hidden='true'
               >
-                <path d='M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1' />
+                <path d='M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1' />
               </svg>
             </ToolButton>
-            <span className={styles.toolSep} aria-hidden='true' />
             <ToolButton
               label={t('editor.clear')}
               onClick={() => run('removeFormat')}
@@ -313,22 +353,22 @@ export function RichTextEditor({
                 className={styles.toolIcon}
                 aria-hidden='true'
               >
-                <path d='M6 5h12M12 5l-3 14M4 20l16-16' />
+                <path d='M4 7V5h12v2M10 5l-3 14M5 19h6M15 15l5 5M20 15l-5 5' />
               </svg>
             </ToolButton>
           </div>
         ) : (
           <span className={styles.toolbarNote}>{t('editor.htmlNote')}</span>
         )}
-        <Segmented
-          name={`${linkInputId}-view`}
-          value={view}
-          options={[
-            { value: 'visual', label: t('editor.visual') },
-            { value: 'html', label: 'HTML' },
-          ]}
-          onChange={switchView}
-        />
+        <button
+          type='button'
+          className={styles.htmlToggle}
+          aria-pressed={view === 'html'}
+          title={view === 'html' ? t('editor.visual') : t('editor.html')}
+          onClick={() => switchView(view === 'html' ? 'visual' : 'html')}
+        >
+          <span aria-hidden='true'>&lt;/&gt;</span> HTML
+        </button>
       </div>
 
       {linkOpen && view === 'visual' && (

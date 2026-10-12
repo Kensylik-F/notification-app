@@ -1,9 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import {
   CHANNEL_ORDER,
   buildSendRequest,
-  contentToTemplate,
   newIdempotencyKey,
   validateSend,
 } from '../../core';
@@ -18,29 +17,49 @@ import type {
 } from '../../core';
 import { useNotificationsContext } from '../context';
 import { formatDateTime } from '../format';
+import { plural } from '../messages';
+import { useDockObstacle } from '../dock';
+import { useKitPreview } from '../preview';
 import { Button, StateBlock, cx } from '../primitives';
 import styles from './admin.module.css';
 import { DeliveryTable } from './DeliveryLog';
 import { Combobox, Dropdown } from './Dropdown';
 import { ErrorNotice } from './errors';
 import {
-  CheckChips,
+  CheckTiles,
+  Disclosure,
   Field,
   FieldSet,
   FormSection,
   Notice,
   Segmented,
   TextInput,
+  revealFirstError,
   toLocalInput,
 } from './forms';
 import { useNotificationRequest, useSendNotification } from './hooks';
-import { MessageFields, initialContent } from './MessageFields';
+import {
+  MessageFields,
+  MessageModeSwitch,
+  initialContent,
+} from './MessageFields';
+import {
+  CHANNEL_ICON,
+  PREVIEW_CHANNELS,
+  PreviewButton,
+  PreviewDialog,
+  PreviewStrip,
+  previewInboxEntry,
+  useClearPreviewOnLeave,
+  useFetchPreview,
+  usePreviewRequest,
+} from './Preview';
+import type { PreviewChannel } from './Preview';
 import { RecipientField } from './RecipientField';
-import { TemplatePreview } from './TemplatePreview';
 
 const CLASSES: SendCategoryClass[] = ['TRANSACTIONAL', 'PLATFORM', 'MARKETING'];
 const PRIORITIES: SendPriority[] = ['NORMAL', 'HIGH', 'BULK'];
-const PREVIEW_DEFAULT: Channel[] = ['EMAIL', 'IN_APP'];
+const CONTENT_KEYS = ['subject', 'body', 'templateKey', 'variables'] as const;
 
 interface ComposerState {
   content: MessageContent;
@@ -89,21 +108,22 @@ export interface NotificationComposerProps {
 }
 
 /**
- * "New mailing": the message (text in the editor, or a template by key),
- * recipients, channels, category, when; class and priority under "More".
- * The preview on the right is the service's own rendering.
+ * "New mailing" in one column: to whom, where, the message, the
+ * parameters; class and priority under "More". The bar at the bottom stays
+ * in view with the count of deliveries, "Preview" and "Send".
  */
 export function NotificationComposer({
   defaultCategory,
   onOpenDeliveries,
   onSent,
 }: NotificationComposerProps) {
-  const { t, admin } = useNotificationsContext();
+  const { t, admin, locale } = useNotificationsContext();
   const freeformKey = admin.freeformTemplateKey;
   const [state, setState] = useState<ComposerState>(() =>
     initialState(freeformKey, defaultCategory)
   );
   const [showErrors, setShowErrors] = useState(false);
+  const [showContentErrors, setShowContentErrors] = useState(false);
   const send = useSendNotification();
   const [sent, setSent] = useState<{
     id: string | undefined;
@@ -111,26 +131,37 @@ export function NotificationComposer({
     answer: NotificationRequestResponse;
   } | null>(null);
 
+  // Preview
+  const [kitPreview, setKitPreview] = useKitPreview();
+  const [dialog, setDialog] = useState<PreviewChannel | null>(null);
+  const [lastDialog, setLastDialog] = useState<PreviewChannel>('EMAIL');
+  const [previewError, setPreviewError] = useState<unknown>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const fetchPreview = useFetchPreview();
+  const requestFor = usePreviewRequest(state.content);
+  const topRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  useDockObstacle(barRef);
+  useClearPreviewOnLeave();
+
   // One key per submission: kept across repeats of the same draft, renewed
   // as soon as the draft changes.
   const keyRef = useRef<{ fingerprint: string; key: string } | null>(null);
 
   const draft = toDraft(state);
   const errors = validateSend(draft, { freeformTemplateKey: freeformKey });
-  const visible = showErrors ? errors : {};
+  const visible = showErrors
+    ? errors
+    : showContentErrors
+      ? Object.fromEntries(
+          CONTENT_KEYS.filter(k => errors[k]).map(k => [k, errors[k]])
+        )
+      : {};
   const valid = Object.keys(errors).length === 0;
+  const contentValid = CONTENT_KEYS.every(k => !errors[k]);
 
   const update = (patch: Partial<ComposerState>) =>
     setState(current => ({ ...current, ...patch }));
-
-  const preview = useMemo(
-    () => contentToTemplate(state.content, freeformKey),
-    [state.content, freeformKey]
-  );
-  const previewIdle =
-    state.content.mode === 'freeform' &&
-    !state.content.subject.trim() &&
-    !state.content.bodyText.trim();
 
   if (!admin.permissions.send) {
     return (
@@ -145,7 +176,10 @@ export function NotificationComposer({
 
   const submit = () => {
     setShowErrors(true);
-    if (!valid) return;
+    if (!valid) {
+      revealFirstError(topRef.current);
+      return;
+    }
     const request = buildSendRequest(draft, freeformKey);
     const fingerprint = JSON.stringify(request);
     if (keyRef.current?.fingerprint !== fingerprint) {
@@ -155,6 +189,7 @@ export function NotificationComposer({
       { request, idempotencyKey: keyRef.current.key },
       {
         onSuccess: answer => {
+          setKitPreview(null);
           setSent({ id: answer.id ?? undefined, at: Date.now(), answer });
           onSent?.(answer);
         },
@@ -165,6 +200,7 @@ export function NotificationComposer({
   const restart = (keep: boolean) => {
     setSent(null);
     setShowErrors(false);
+    setShowContentErrors(false);
     send.reset();
     keyRef.current = null;
     if (!keep) setState(initialState(freeformKey, defaultCategory));
@@ -181,13 +217,59 @@ export function NotificationComposer({
     );
   }
 
-  const deliveries = state.recipients.length * state.channels.length;
-  const previewChannels = CHANNEL_ORDER.filter(c =>
-    (state.channels.length ? state.channels : PREVIEW_DEFAULT).includes(c)
+  const runInApp = async () => {
+    setDialog(null);
+    const request = requestFor('IN_APP');
+    if (!request) return;
+    setPreviewBusy(true);
+    setPreviewError(null);
+    try {
+      const result = await fetchPreview(request);
+      setKitPreview({
+        kind: 'inbox',
+        entry: previewInboxEntry(result, {
+          priority: state.priority,
+          category: state.category.trim() || null,
+          categoryClass: state.categoryClass,
+        }),
+      });
+      topRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    } catch (error) {
+      setPreviewError(error);
+    } finally {
+      setPreviewBusy(false);
+    }
+  };
+
+  const pick = (channel: PreviewChannel) => {
+    if (!contentValid) {
+      setShowContentErrors(true);
+      revealFirstError(topRef.current);
+      return;
+    }
+    setPreviewError(null);
+    if (channel === 'IN_APP') void runInApp();
+    else {
+      setLastDialog(channel);
+      setDialog(channel);
+    }
+  };
+
+  const previewChannels = PREVIEW_CHANNELS.filter(c =>
+    state.channels.includes(c)
   );
+  const recipients = state.recipients.length;
+  const channels = state.channels.length;
+  const deliveries = recipients * channels;
+  const inAppActive = kitPreview?.kind === 'inbox';
 
   return (
-    <div className={cx(styles.root, styles.workspace)}>
+    <div className={cx(styles.root, styles.composer)} ref={topRef}>
+      {inAppActive && (
+        <PreviewStrip onExit={() => setKitPreview(null)}>
+          <strong>{t('preview.strip.title')}</strong> {t('preview.strip.inbox')}
+        </PreviewStrip>
+      )}
       <form
         className={styles.form}
         noValidate
@@ -196,15 +278,7 @@ export function NotificationComposer({
           submit();
         }}
       >
-        <FormSection step={1} title={t('compose.section.message')}>
-          <MessageFields
-            value={state.content}
-            onChange={content => update({ content })}
-            errors={visible}
-          />
-        </FormSection>
-
-        <FormSection step={2} title={t('compose.section.recipients')}>
+        <FormSection title={t('compose.section.recipients')}>
           <RecipientField
             value={state.recipients}
             onChange={recipients => update({ recipients })}
@@ -212,78 +286,104 @@ export function NotificationComposer({
           />
         </FormSection>
 
-        <FormSection step={3} title={t('compose.section.delivery')}>
-          <FieldSet
-            legend={t('compose.channels')}
-            hint={t('compose.channels.hint')}
-            error={visible.channels ? t('compose.channels.error') : undefined}
+        <FormSection title={t('compose.section.channels')}>
+          <CheckTiles
+            label={t('compose.channels')}
+            value={state.channels}
+            options={CHANNEL_ORDER.map(c => ({
+              value: c,
+              label: t(`channel.${c}`),
+              icon: CHANNEL_ICON[c],
+            }))}
+            onChange={channels => update({ channels })}
+          />
+          <span
+            className={visible.channels ? styles.fieldError : styles.fieldHint}
+            role={visible.channels ? 'alert' : undefined}
           >
-            <CheckChips
-              value={state.channels}
-              options={CHANNEL_ORDER.map(c => ({
-                value: c,
-                label: t(`channel.${c}`),
-              }))}
-              onChange={channels => update({ channels })}
-            />
-          </FieldSet>
-          <Field
-            label={t('compose.category')}
-            required
-            hint={t('compose.category.hint')}
-            error={
-              visible.category === 'tooLong'
-                ? t('compose.category.error.tooLong')
-                : visible.category
-                  ? t('compose.category.error.required')
-                  : undefined
-            }
-          >
-            {({ id, describedBy, invalid }) => (
-              <Combobox
-                id={id}
-                describedBy={describedBy}
-                invalid={invalid}
-                value={state.category}
-                options={admin.categories.map(c => ({
-                  value: c.code,
-                  label: c.label,
-                  hint: c.code,
-                }))}
-                onChange={category => {
-                  const known = admin.categories.find(
-                    c => c.code === category.trim()
-                  );
-                  update({
-                    category,
-                    ...(known?.categoryClass
-                      ? { categoryClass: known.categoryClass }
-                      : {}),
-                  });
-                }}
-              />
-            )}
-          </Field>
+            {visible.channels
+              ? t('compose.channels.error')
+              : t('compose.channels.hint')}
+          </span>
         </FormSection>
 
-        <FormSection step={4} title={t('compose.section.schedule')}>
-          <Segmented
-            name='nk-when'
-            value={state.later ? 'later' : 'now'}
-            options={[
-              { value: 'now', label: t('compose.when.now') },
-              { value: 'later', label: t('compose.when.later') },
-            ]}
-            onChange={value =>
-              update({
-                later: value === 'later',
-                scheduledAt:
-                  value === 'later' && !state.scheduledAt
-                    ? toLocalInput(new Date(Date.now() + 60 * 60_000))
-                    : state.scheduledAt,
-              })
-            }
+        <FormSection
+          title={t('compose.section.message')}
+          aside={
+            <MessageModeSwitch
+              value={state.content}
+              onChange={content => update({ content })}
+            />
+          }
+        >
+          <MessageFields
+            value={state.content}
+            onChange={content => update({ content })}
+            errors={visible}
           />
+        </FormSection>
+
+        <FormSection title={t('compose.section.params')}>
+          <div className={styles.grid2}>
+            <Field
+              label={t('compose.category')}
+              required
+              hint={t('compose.category.hint')}
+              error={
+                visible.category === 'tooLong'
+                  ? t('compose.category.error.tooLong')
+                  : visible.category
+                    ? t('compose.category.error.required')
+                    : undefined
+              }
+            >
+              {({ id, describedBy, invalid }) => (
+                <Combobox
+                  id={id}
+                  describedBy={describedBy}
+                  invalid={invalid}
+                  value={state.category}
+                  placeholder={t('compose.category.placeholder')}
+                  options={admin.categories.map(c => ({
+                    value: c.code,
+                    label: c.label,
+                    hint: c.code,
+                  }))}
+                  onChange={category => {
+                    const known = admin.categories.find(
+                      c => c.code === category.trim()
+                    );
+                    update({
+                      category,
+                      ...(known?.categoryClass
+                        ? { categoryClass: known.categoryClass }
+                        : {}),
+                    });
+                  }}
+                />
+              )}
+            </Field>
+            <FieldSet legend={t('compose.section.schedule')}>
+              <Segmented
+                name='nk-when'
+                label={t('compose.section.schedule')}
+                value={state.later ? 'later' : 'now'}
+                options={[
+                  { value: 'now', label: t('compose.when.now') },
+                  { value: 'later', label: t('compose.when.later') },
+                ]}
+                onChange={value =>
+                  update({
+                    later: value === 'later',
+                    scheduledAt:
+                      value === 'later' && !state.scheduledAt
+                        ? toLocalInput(new Date(Date.now() + 60 * 60_000))
+                        : state.scheduledAt,
+                  })
+                }
+              />
+            </FieldSet>
+          </div>
           {state.later && (
             <Field
               label={t('compose.when.at')}
@@ -311,87 +411,120 @@ export function NotificationComposer({
               )}
             </Field>
           )}
-        </FormSection>
-
-        <details className={styles.more}>
-          <summary className={styles.moreSummary}>
-            <span>{t('compose.more')}</span>
-            <span className={styles.muted}>
-              {t(`class.${state.categoryClass}`)} ·{' '}
-              {t(`priority.${state.priority}`)}
-            </span>
-          </summary>
-          <div className={styles.sectionBody}>
-            <Field
-              label={t('compose.class')}
-              hint={t(`class.${state.categoryClass}.hint`)}
-            >
-              {({ id, describedBy }) => (
-                <Dropdown
-                  id={id}
-                  describedBy={describedBy}
-                  value={state.categoryClass}
-                  options={CLASSES.map(c => ({
-                    value: c,
-                    label: t(`class.${c}`),
-                    hint: t(`class.${c}.hint`),
+          <Disclosure
+            summary={t('compose.moreSummary', {
+              cls: t(`class.${state.categoryClass}`).toLowerCase(),
+              priority: t(`priority.${state.priority}.short`),
+            })}
+          >
+            <div className={styles.grid2}>
+              <Field
+                label={t('compose.class')}
+                hint={t(`class.${state.categoryClass}.hint`)}
+              >
+                {({ id, describedBy }) => (
+                  <Dropdown
+                    id={id}
+                    describedBy={describedBy}
+                    value={state.categoryClass}
+                    options={CLASSES.map(c => ({
+                      value: c,
+                      label: t(`class.${c}`),
+                      hint: t(`class.${c}.hint`),
+                    }))}
+                    onChange={categoryClass => update({ categoryClass })}
+                  />
+                )}
+              </Field>
+              <FieldSet
+                legend={t('priority.label')}
+                hint={t(`priority.${state.priority}.hint`)}
+              >
+                <Segmented
+                  name='nk-priority'
+                  label={t('priority.label')}
+                  value={state.priority}
+                  options={PRIORITIES.map(p => ({
+                    value: p,
+                    label: t(`priority.${p}`),
                   }))}
-                  onChange={categoryClass => update({ categoryClass })}
+                  onChange={priority => update({ priority })}
                 />
-              )}
-            </Field>
-            <FieldSet
-              legend={t('priority.label')}
-              hint={t(`priority.${state.priority}.hint`)}
-            >
-              <Segmented
-                name='nk-priority'
-                value={state.priority}
-                options={PRIORITIES.map(p => ({
-                  value: p,
-                  label: t(`priority.${p}`),
-                }))}
-                onChange={priority => update({ priority })}
-              />
-            </FieldSet>
-          </div>
-        </details>
+              </FieldSet>
+            </div>
+          </Disclosure>
+        </FormSection>
 
         {send.isError && <ErrorNotice error={send.error} t={t} />}
         {send.isError && keyRef.current && (
           <p className={styles.muted}>{t('compose.retryHint')}</p>
         )}
-
-        <div className={styles.submitBar}>
-          <span className={styles.muted}>
-            {showErrors && !valid
-              ? t('compose.fixErrors')
-              : t('compose.summary', {
-                  recipients: state.recipients.length,
-                  channels: state.channels.length,
-                  deliveries,
-                })}
-          </span>
-          <Button
-            type='submit'
-            variant='primary'
-            icon='send'
-            disabled={send.isPending}
-          >
-            {send.isPending
-              ? t('compose.sending')
-              : state.later
-                ? t('compose.submitScheduled')
-                : t('compose.submit')}
-          </Button>
-        </div>
+        {previewError !== null && (
+          <ErrorNotice
+            error={previewError}
+            t={t}
+            action={
+              <Button size='sm' onClick={() => setPreviewError(null)}>
+                {t('preview.close')}
+              </Button>
+            }
+          />
+        )}
       </form>
 
-      <TemplatePreview
-        templateKey={preview.templateKey}
-        variables={preview.variables}
+      <div className={styles.actionBar} ref={barRef}>
+        <span className={styles.actionSummary}>
+          {showErrors && !valid ? (
+            <span className={styles.fieldError}>{t('compose.fixErrors')}</span>
+          ) : (
+            <>
+              {recipients} {plural(t('plural.recipient'), recipients, locale)} ×{' '}
+              {channels} {plural(t('plural.channel'), channels, locale)} ={' '}
+              <strong>
+                {deliveries} {plural(t('plural.delivery'), deliveries, locale)}
+              </strong>
+            </>
+          )}
+        </span>
+        <PreviewButton
+          channels={previewChannels}
+          busy={previewBusy}
+          disabledReason={
+            !admin.permissions.preview
+              ? t('preview.noAccess')
+              : previewChannels.length === 0
+                ? t('preview.pickChannel')
+                : undefined
+          }
+          onPick={pick}
+        />
+        <Button
+          variant='primary'
+          size='lg'
+          icon='send'
+          disabled={send.isPending}
+          onClick={submit}
+        >
+          {send.isPending
+            ? t('compose.sending')
+            : state.later
+              ? t('compose.submitScheduled')
+              : t('compose.submit')}
+        </Button>
+      </div>
+
+      <PreviewDialog
+        open={dialog !== null}
+        channel={dialog ?? lastDialog}
         channels={previewChannels}
-        idle={previewIdle}
+        content={state.content}
+        recipients={state.recipients}
+        onChannelChange={channel => {
+          setLastDialog(channel);
+          setDialog(channel);
+        }}
+        onInApp={() => void runInApp()}
+        onClose={() => setDialog(null)}
       />
     </div>
   );

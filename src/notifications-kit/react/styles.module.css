@@ -1,14 +1,14 @@
 /* notifications-kit styles.
-   Every value comes from a --nk-* custom property with a neutral fallback,
-   so the kit renders on its own and a host re-skins it by declaring those
-   properties once (see README, "Theming"). No selector reaches outside the
-   kit's own class names. */
+   Every value comes from a --nk-* custom property with a fallback taken
+   from the design mock-up, so the kit renders on its own and a host
+   re-skins it by declaring those properties once (README, "Theming").
+   No selector reaches outside the kit's own class names. */
 
 .root {
   font-family: var(--nk-font, system-ui, -apple-system, 'Segoe UI', sans-serif);
   font-size: var(--nk-font-size-body, 14px);
   line-height: 1.45;
-  color: var(--nk-color-text, #1b2524);
+  color: var(--nk-color-text, #1b2321);
   box-sizing: border-box;
 }
 
@@ -18,6 +18,97 @@
   box-sizing: border-box;
 }
 
+/* ── motion ───────────────────────────────────────────────────────────── */
+
+@keyframes nk-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes nk-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes nk-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+
+@keyframes nk-rise-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes nk-drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+}
+
+@keyframes nk-drop-out {
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+}
+
+@keyframes nk-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+}
+
+@keyframes nk-card-out {
+  to {
+    opacity: 0;
+    transform: translateX(28px) scale(0.96);
+  }
+}
+
+@keyframes nk-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+}
+
+@keyframes nk-bump {
+  0% {
+    transform: scale(0.6);
+  }
+  55% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes nk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes nk-shimmer {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 /* ── controls ─────────────────────────────────────────────────────────── */
 
 .button {
@@ -25,17 +116,38 @@
   align-items: center;
   justify-content: center;
   gap: var(--nk-space-sm, 8px);
-  min-height: var(--nk-control-height, 32px);
-  padding: 0 var(--nk-space-md, 12px);
+  height: 36px;
+  padding: 0 12px;
   border: 1px solid transparent;
   border-radius: var(--nk-radius-md, 10px);
   background: transparent;
   color: inherit;
   font: inherit;
   font-size: var(--nk-font-size-label, 13px);
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease,
+    box-shadow 0.15s ease;
+}
+
+.button:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+.buttonSm {
+  height: 32px;
+  padding: 0 10px;
+}
+
+.buttonLg {
+  height: 40px;
+  padding: 0 18px;
+  font-size: var(--nk-font-size-body, 14px);
 }
 
 .button:disabled {
@@ -45,32 +157,42 @@
 
 .button:focus-visible,
 .iconButton:focus-visible,
+.close:focus-visible,
 .rowMain:focus-visible,
-.tab:focus-visible {
-  outline: 2px solid var(--nk-color-accent, #2a756f);
+.tab:focus-visible,
+.switch:focus-visible,
+.cardMain:focus-visible,
+.cardLink:focus-visible {
+  outline: 2px solid var(--nk-color-accent, #2b7a6e);
   outline-offset: 2px;
 }
 
 .buttonPrimary {
-  background: var(--nk-color-accent, #2a756f);
+  background: var(--nk-color-accent, #2b7a6e);
   color: var(--nk-color-on-accent, #ffffff);
 }
 
+.buttonPrimary:not(:disabled):hover {
+  background: var(--nk-color-accent-hover, #23685d);
+}
+
 .buttonOutline {
-  border-color: var(--nk-color-border-strong, rgba(22, 40, 38, 0.2));
+  border-color: var(--nk-color-border-strong, #d5dbda);
+  background: var(--nk-color-surface-raised, #ffffff);
+  color: var(--nk-color-text, #1b2321);
+}
+
+.buttonOutline:not(:disabled):hover {
+  background: var(--nk-color-surface-hover, #f1f4f3);
+  border-color: var(--nk-color-border-hover, #c3cbc9);
 }
 
 .buttonGhost {
-  color: var(--nk-color-accent-text, #1d5d58);
+  color: var(--nk-color-accent-text, #236b60);
 }
 
-.buttonOutline:not(:disabled):hover,
 .buttonGhost:not(:disabled):hover {
-  background: var(--nk-color-surface-hover, rgba(22, 40, 38, 0.06));
-}
-
-.buttonPrimary:not(:disabled):hover {
-  filter: brightness(1.08);
+  background: var(--nk-color-accent-soft, #e0eeea);
 }
 
 .iconButton {
@@ -79,20 +201,56 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: var(--nk-control-height, 32px);
-  height: var(--nk-control-height, 32px);
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 0;
-  border-radius: var(--nk-radius-md, 10px);
+  border-radius: 9px;
   background: transparent;
-  color: var(--nk-color-text-muted, #5d6866);
+  color: var(--nk-color-text-secondary, #4d5856);
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .iconButton:hover,
 .iconButton[aria-expanded='true'] {
-  background: var(--nk-color-surface-hover, rgba(22, 40, 38, 0.06));
-  color: var(--nk-color-text, #1b2524);
+  background: var(--nk-color-surface-pressed, #dfe6e4);
+  color: var(--nk-color-text, #1b2321);
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--nk-color-close, #eef1f0);
+  color: var(--nk-color-text-secondary, #3c4745);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.close:hover {
+  background: var(--nk-color-close-hover, #dde3e1);
+  color: var(--nk-color-text, #1b2321);
+}
+
+.close:active {
+  transform: scale(0.92);
+}
+
+.closeLarge {
+  width: 32px;
+  height: 32px;
 }
 
 .icon {
@@ -101,7 +259,7 @@
   flex: none;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.6;
+  stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -113,35 +271,303 @@
 
 .badge {
   position: absolute;
-  top: -2px;
-  inset-inline-end: -2px;
-  min-width: 17px;
-  height: 17px;
+  top: 1px;
+  inset-inline-end: 0;
+  min-width: 16px;
+  height: 16px;
   padding: 0 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 9px;
-  background: var(--nk-color-badge, #c8502f);
+  border-radius: 8px;
+  background: var(--nk-color-badge, #c0502f);
   color: var(--nk-color-on-badge, #ffffff);
-  font-size: 10.5px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   line-height: 1;
+  animation: nk-bump 0.42s cubic-bezier(0.3, 1.4, 0.5, 1);
 }
 
 .spinner {
+  display: inline-block;
   width: 18px;
   height: 18px;
-  border: 2px solid var(--nk-color-border-strong, rgba(22, 40, 38, 0.2));
-  border-top-color: var(--nk-color-accent, #2a756f);
+  border: 2px solid var(--nk-color-border-strong, #d5dbda);
+  border-top-color: var(--nk-color-accent, #2b7a6e);
   border-radius: 50%;
   animation: nk-spin 0.8s linear infinite;
 }
 
-@keyframes nk-spin {
-  to {
-    transform: rotate(360deg);
-  }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--nk-color-chip, #e9edec);
+  color: var(--nk-color-text-secondary, #3c4745);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip[data-tone='danger'] {
+  background: var(--nk-color-danger-soft, #fbe9e3);
+  color: var(--nk-color-danger-text, #8c3a22);
+}
+
+.chip[data-tone='accent'] {
+  background: var(--nk-color-accent-soft, #e0eeea);
+  color: var(--nk-color-accent-text, #236b60);
+}
+
+.chip[data-tone='preview'] {
+  height: 20px;
+  background: var(--nk-color-preview-soft, #fff1d6);
+  color: var(--nk-color-preview-text, #7a4b00);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--nk-space-sm, 8px);
+  padding: 32px 16px;
+  color: var(--nk-color-text-muted, #5f6a68);
+  text-align: center;
+  animation: nk-fade-in 0.25s ease both;
+}
+
+.stateIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--nk-color-accent-soft, #e0eeea);
+  color: var(--nk-color-accent-text, #236b60);
+}
+
+.stateTitle {
+  color: var(--nk-color-text, #1b2321);
+  font-weight: 600;
+}
+
+.stateNote {
+  font-size: var(--nk-font-size-caption, 12px);
+  color: var(--nk-color-text-muted, #5f6a68);
+}
+
+/* switch */
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--nk-color-text-secondary, #2a3331);
+  font: inherit;
+  font-size: var(--nk-font-size-label, 13px);
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.switchTrack {
+  position: relative;
+  flex: none;
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--nk-color-switch-off, #c9d1cf);
+  transition: background-color 0.2s ease;
+}
+
+.switchKnob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.22s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+
+.switch[aria-checked='true'] .switchTrack {
+  background: var(--nk-color-accent, #2b7a6e);
+}
+
+.switch[aria-checked='true'] .switchKnob {
+  transform: translateX(14px);
+}
+
+/* tabs */
+
+.tabRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  min-height: 46px;
+  justify-content: space-between;
+  gap: 8px 16px;
+  border-bottom: 1px solid var(--nk-color-border, #e2e6e5);
+}
+
+.tabList {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 2px;
+  border: 0;
+  background: none;
+  color: var(--nk-color-text-muted, #5f6a68);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.tab:hover,
+.tab[aria-selected='true'] {
+  color: var(--nk-color-text, #1b2321);
+}
+
+.tabCount {
+  min-width: 22px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--nk-color-accent-soft, #e0eeea);
+  color: var(--nk-color-accent-text, #236b60);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabIndicator {
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--nk-color-accent, #2b7a6e);
+  transition:
+    transform 0.32s cubic-bezier(0.2, 0.9, 0.25, 1),
+    width 0.32s cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+
+.tabAfter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+}
+
+/* ── dialogs ──────────────────────────────────────────────────────────── */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--nk-z-overlay, 1000) + 20);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+  background: var(--nk-color-scrim, rgba(27, 35, 33, 0.45));
+  animation: nk-fade-in 0.2s ease both;
+}
+
+.scrim[data-closing='true'] {
+  animation: nk-fade-out 0.22s ease both;
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: auto 0;
+  padding: 24px;
+  background: var(--nk-color-surface-raised, #ffffff);
+  border-radius: 20px;
+  box-shadow: var(--nk-shadow-dialog, 0 24px 64px rgba(10, 20, 18, 0.3));
+  outline: none;
+  animation: nk-rise-in 0.3s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+.dialog[data-closing='true'] {
+  animation: nk-rise-out 0.2s ease-in both;
+}
+
+.dialogHead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dialogHeadRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dialogTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.dialogBody {
+  font-size: var(--nk-font-size-body, 14px);
+  line-height: 22px;
+  color: var(--nk-color-text-body, #2a3331);
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--nk-space-sm, 8px);
+  margin-top: 4px;
+}
+
+/* ── bodies ───────────────────────────────────────────────────────────── */
+
+.htmlFrame {
+  display: block;
+  width: 100%;
+  height: 40px;
+  border: 0;
+  background: transparent;
+}
+
+.body {
+  min-width: 0;
+}
+
+.bodyText {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* ── bell ─────────────────────────────────────────────────────────────── */
@@ -154,80 +580,358 @@
 .popover {
   /* Placed by NotificationBell (top, right/left, max-height). */
   position: fixed;
-  /* Above the announcement overlays: an open dropdown is what the person
-     is looking at. */
   z-index: calc(var(--nk-z-overlay, 1000) + 10);
-  width: min(400px, calc(100vw - 32px));
+  width: min(380px, calc(100vw - 32px));
   display: flex;
   flex-direction: column;
+  padding: 8px;
   background: var(--nk-color-surface-raised, #ffffff);
-  border: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
-  border-radius: var(--nk-radius-lg, 14px);
+  border: 1px solid var(--nk-color-border-soft, rgba(20, 40, 35, 0.08));
+  border-radius: 16px;
   box-shadow: var(
     --nk-shadow,
-    0 14px 36px rgba(20, 35, 33, 0.16),
-    0 2px 6px rgba(20, 35, 33, 0.08)
+    0 12px 32px rgba(20, 40, 35, 0.16),
+    0 2px 6px rgba(20, 40, 35, 0.06)
   );
   overflow: hidden;
-  animation: nk-enter 0.14s ease-out;
+  transform-origin: top right;
+  animation: nk-pop-in 0.18s cubic-bezier(0.2, 0.9, 0.25, 1) both;
 }
 
-.popoverHeader,
-.popoverFooter {
+.popoverHeader {
   flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--nk-space-md, 12px);
-  padding: var(--nk-space-md, 12px) var(--nk-space-lg, 16px);
-}
-
-.popoverHeader {
-  border-bottom: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
-}
-
-.popoverFooter {
-  justify-content: center;
-  border-top: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
-  padding-block: var(--nk-space-xs, 4px);
+  gap: 12px;
+  padding: 2px 4px 8px 8px;
+  border-bottom: 1px solid var(--nk-color-border, #e9edec);
 }
 
 .popoverTitle {
   margin: 0;
-  font-size: var(--nk-font-size-title, 16px);
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .popoverBody {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  padding-top: 6px;
 }
 
-/* ── inbox ────────────────────────────────────────────────────────────── */
+.popoverFooter {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding-top: 6px;
+  border-top: 1px solid var(--nk-color-border, #e9edec);
+}
 
-.panel {
+/* ── lists ────────────────────────────────────────────────────────────── */
+
+.list {
   display: flex;
   flex-direction: column;
-  gap: var(--nk-space-sm, 8px);
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  position: relative;
+  border-radius: 12px;
+  animation: nk-fade-in 0.28s ease both;
+  transition: background-color 0.15s ease;
+}
+
+.row:hover {
+  background: var(--nk-color-surface-hover, #eef2f1);
+}
+
+.row[data-selected='true'] {
+  background: var(--nk-color-accent-soft, #e0eeea);
+}
+
+.row[data-leaving='true'] {
+  animation: nk-card-out 0.22s ease-in both;
+  pointer-events: none;
+}
+
+.rowMain {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 10px 12px 14px;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.rowMain:focus-visible {
+  outline-offset: -2px;
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: transparent;
+  transition:
+    background-color 0.3s ease,
+    transform 0.3s ease;
+}
+
+.dot[data-mark='unread'] {
+  background: var(--nk-color-accent, #2b7a6e);
+}
+
+.dot[data-mark='read'] {
+  transform: scale(0.4);
+}
+
+.dot[data-mark='closed'] {
+  border: 1.5px solid var(--nk-color-text-faint, #9aa4a2);
+}
+
+.rowText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rowTop {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
 }
 
-.panelBar {
+.rowTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.row[data-mark='unread'] .rowTitle {
+  font-weight: 700;
+}
+
+.row[data-mark='closed'] .rowTitle {
+  color: var(--nk-color-text-secondary, #4d5856);
+}
+
+.rowTime {
+  flex: none;
+  font-size: 12px;
+  color: var(--nk-color-text-muted, #5f6a68);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowPreview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--nk-color-text-muted, #5f6a68);
+}
+
+.rowSkeleton {
+  display: block;
+  width: 70%;
+  height: 10px;
+  margin: 4px 0;
+  border-radius: 5px;
+  background: var(--nk-color-skeleton, #e6eae9);
+  animation: nk-shimmer 1.2s ease-in-out infinite;
+}
+
+.listFooter {
+  display: flex;
+  justify-content: center;
+  padding: 8px 14px;
+}
+
+.listLabel {
+  padding: 14px 14px 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nk-color-text-muted, #5f6a68);
+}
+
+.listLabel:first-child {
+  padding-top: 8px;
+}
+
+.listNote {
+  margin: 0;
+  padding: 6px 14px 10px;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--nk-color-text-muted, #5f6a68);
+}
+
+/* ── notification center ──────────────────────────────────────────────── */
+
+.center {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.centerHead {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--nk-space-sm, 8px) var(--nk-space-lg, 16px);
-  min-height: 40px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
-.panelActions {
+.centerTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--nk-space-xs, 4px);
+  gap: 8px;
 }
+
+.split {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.listPane {
+  flex: none;
+  width: 320px;
+  padding: 8px 8px 16px 0;
+  border-right: 1px solid var(--nk-color-border, #e2e6e5);
+  animation: nk-fade-in 0.25s ease both;
+}
+
+.readerPane {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 20px 4px 40px 28px;
+}
+
+.center[data-compact='true'] .listPane {
+  width: 100%;
+  padding-right: 0;
+  border-right: 0;
+}
+
+.center[data-compact='true'] .readerPane {
+  padding-left: 0;
+}
+
+.back {
+  margin: -8px 0 12px -8px;
+}
+
+.readerEnter {
+  animation: nk-reader-in 0.28s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+@keyframes nk-reader-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.reader {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.readerHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--nk-color-border, #e2e6e5);
+}
+
+.readerHeading {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.readerTitle {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.readerMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--nk-color-text-muted, #5f6a68);
+}
+
+.readerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.readerBody {
+  max-width: 620px;
+  padding-top: 20px;
+  font-size: var(--nk-font-size-body, 14px);
+  line-height: 22px;
+  color: var(--nk-color-text-body, #2a3331);
+}
+
+.readerNote {
+  margin: 16px 0 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--nk-color-preview-soft, #fff1d6);
+  color: var(--nk-color-preview-text, #4a3200);
+  font-size: 13px;
+}
+
+/* actions: dismiss all */
 
 .confirmAnchor {
   position: relative;
@@ -236,23 +940,24 @@
 
 .confirmPop {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 8px);
   right: 0;
   z-index: 30;
   width: 300px;
   display: flex;
   flex-direction: column;
   gap: var(--nk-space-sm, 8px);
-  padding: var(--nk-space-md, 12px) var(--nk-space-lg, 16px);
+  padding: 14px 16px;
   background: var(--nk-color-surface-raised, #ffffff);
-  border: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
-  border-radius: var(--nk-radius-md, 10px);
+  border: 1px solid var(--nk-color-border-soft, rgba(20, 40, 35, 0.08));
+  border-radius: 14px;
   box-shadow: var(
     --nk-shadow,
-    0 14px 36px rgba(20, 35, 33, 0.16),
-    0 2px 6px rgba(20, 35, 33, 0.08)
+    0 12px 32px rgba(20, 40, 35, 0.16),
+    0 2px 6px rgba(20, 40, 35, 0.06)
   );
-  animation: nk-enter 0.14s ease-out;
+  transform-origin: top right;
+  animation: nk-pop-in 0.18s cubic-bezier(0.2, 0.9, 0.25, 1) both;
 }
 
 .confirmActions {
@@ -265,366 +970,166 @@
   display: inline-flex;
   align-items: center;
   gap: var(--nk-space-sm, 8px);
-  min-height: var(--nk-control-height, 32px);
+  min-height: 36px;
 }
 
 .dismissAllText {
   font-size: var(--nk-font-size-label, 13px);
-  color: var(--nk-color-text-muted, #5d6866);
+  color: var(--nk-color-text-muted, #5f6a68);
   font-variant-numeric: tabular-nums;
 }
 
-.tabs {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: var(--nk-radius-md, 10px);
-  background: var(--nk-color-surface-hover, rgba(22, 40, 38, 0.06));
-}
-
-.tab {
-  min-height: 28px;
-  padding: 0 var(--nk-space-md, 12px);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 0;
-  border-radius: var(--nk-radius-sm, 8px);
-  background: transparent;
-  color: var(--nk-color-text-muted, #5d6866);
-  font: inherit;
-  font-size: var(--nk-font-size-label, 13px);
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.tab[aria-selected='true'] {
-  background: var(--nk-color-surface-raised, #ffffff);
-  color: var(--nk-color-text, #1b2524);
-  box-shadow: 0 1px 3px rgba(20, 35, 33, 0.12);
-}
-
-.tabCount {
-  font-size: var(--nk-font-size-caption, 12px);
-  font-weight: 600;
-  color: var(--nk-color-accent-text, #1d5d58);
-}
-
-.list {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* On a page the list is a card; in the dropdown it is bare. */
-.panel .list {
+.miniProgress {
+  position: relative;
+  width: 64px;
+  height: 4px;
   overflow: hidden;
-  background: var(--nk-color-surface-raised, #ffffff);
-  border: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
-  border-radius: var(--nk-radius-lg, 14px);
+  border-radius: 2px;
+  background: var(--nk-color-border, #e2e6e5);
 }
 
-.row {
+.miniProgress > span {
+  position: absolute;
+  inset: 0;
+  background: var(--nk-color-accent, #2b7a6e);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+/* ── overlays: the dock ───────────────────────────────────────────────── */
+
+/* Mirrors the work area (or the window): the overlays are placed inside
+   it, so they never cover the page header or a side panel. */
+.dock {
+  position: fixed;
+  z-index: var(--nk-z-overlay, 1000);
+  pointer-events: none;
+}
+
+.dockCorner {
+  position: absolute;
+  right: 24px;
+  bottom: calc(24px + var(--nk-dock-inset, 0px));
+  transition: bottom 0.3s cubic-bezier(0.2, 0.9, 0.25, 1);
+  width: min(360px, calc(100% - 32px));
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
+  align-items: stretch;
+  gap: 12px;
 }
 
-.row:last-child {
-  border-bottom: 0;
+.dock[data-narrow='true'] .dockCorner {
+  right: 16px;
+  bottom: calc(16px + var(--nk-dock-inset, 0px));
 }
 
-.row[data-expanded='true'] {
-  background: var(--nk-color-surface-hover, rgba(22, 40, 38, 0.06));
+.dockTop {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  width: min(560px, calc(100% - 32px));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.rowMain {
+.dockCorner > *,
+.dockTop > * {
+  pointer-events: auto;
+}
+
+/* cards: the deck, new notifications, strips */
+
+.deckCard,
+.inboxToast,
+.strip {
+  position: relative;
   display: flex;
   align-items: flex-start;
-  gap: var(--nk-space-md, 12px);
+  gap: 10px;
+  padding: 14px 12px 14px 16px;
+  background: var(--nk-color-surface-raised, #ffffff);
+  border: 1px solid var(--nk-color-border-soft, rgba(20, 40, 35, 0.08));
+  border-radius: 16px;
+  box-shadow: var(
+    --nk-shadow,
+    0 12px 32px rgba(20, 40, 35, 0.16),
+    0 2px 6px rgba(20, 40, 35, 0.06)
+  );
+}
+
+.deckCard[data-preview='true'],
+.inboxToast[data-preview='true'],
+.strip[data-preview='true'] {
+  box-shadow:
+    0 0 0 2px var(--nk-color-preview-ring, #e8b65c),
+    var(
+      --nk-shadow,
+      0 12px 32px rgba(20, 40, 35, 0.16),
+      0 2px 6px rgba(20, 40, 35, 0.06)
+    );
+}
+
+.cardInner {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.cardMain {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   width: 100%;
-  padding: var(--nk-space-md, 12px) var(--nk-space-lg, 16px);
+  padding: 0;
   border: 0;
-  background: transparent;
+  border-radius: 6px;
+  background: none;
   color: inherit;
   font: inherit;
   text-align: start;
   cursor: pointer;
 }
 
-.rowMain:hover {
-  background: var(--nk-color-surface-hover, rgba(22, 40, 38, 0.06));
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+  font-size: 12px;
+  color: var(--nk-color-text-muted, #5f6a68);
 }
 
-.rowMain:focus-visible {
-  outline-offset: -2px;
-}
-
-/* The mark keeps its width when the row is read, so titles stay aligned. */
-.unreadMark {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  margin-top: 6px;
-  border-radius: 50%;
-  background: var(--nk-color-accent, #2a756f);
-  visibility: hidden;
-}
-
-.unreadMark[data-unread='true'] {
-  visibility: visible;
-}
-
-.rowText {
+.cardMetaText {
   flex: 1 1 auto;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.rowTitle {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 400;
 }
 
-.row[data-expanded='true'] .rowTitle {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.rowTitle[data-unread='true'] {
+.cardMore {
   font-weight: 600;
-}
-
-.rowMeta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px var(--nk-space-xs, 4px);
-  font-size: var(--nk-font-size-caption, 12px);
-  color: var(--nk-color-text-muted, #5d6866);
-}
-
-.rowMeta .tag {
-  margin-inline-end: var(--nk-space-xs, 4px);
-}
-
-.rowChevron {
-  flex: none;
-  display: inline-flex;
-  margin-top: 3px;
-  color: var(--nk-color-text-muted, #5d6866);
-  transition: transform 0.15s ease;
-}
-
-.row[data-expanded='true'] .rowChevron {
-  transform: rotate(180deg);
-}
-
-/* Under the title, aligned with it (mark 8px + gap). */
-.rowBody {
-  display: flex;
-  flex-direction: column;
-  gap: var(--nk-space-md, 12px);
-  padding: 0 var(--nk-space-lg, 16px) var(--nk-space-md, 12px)
-    calc(var(--nk-space-lg, 16px) + 8px + var(--nk-space-md, 12px));
-}
-
-.rowActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--nk-space-sm, 8px);
-}
-
-.rowLoading {
-  display: inline-flex;
-}
-
-.tag {
-  display: inline-flex;
-  align-items: center;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: 6px;
-  background: var(--nk-color-accent-soft, rgba(42, 117, 111, 0.13));
-  color: var(--nk-color-accent-text, #1d5d58);
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--nk-space-sm, 8px);
-  padding: var(--nk-space-xl, 24px) var(--nk-space-lg, 16px);
-  color: var(--nk-color-text-muted, #5d6866);
-  text-align: center;
-}
-
-.stateTitle {
-  color: var(--nk-color-text, #1b2524);
-  font-weight: 500;
-}
-
-.stateNote {
-  font-size: var(--nk-font-size-caption, 12px);
-}
-
-.panelFooter {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--nk-space-sm, 8px);
-  min-height: 40px;
-  font-size: var(--nk-font-size-caption, 12px);
-  color: var(--nk-color-text-muted, #5d6866);
-}
-
-/* ── single item ──────────────────────────────────────────────────────── */
-
-.item {
-  display: flex;
-  flex-direction: column;
-  gap: var(--nk-space-lg, 16px);
-  max-width: 760px;
-  min-width: 0;
-}
-
-.itemHeading {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--nk-space-xs, 4px);
-}
-
-.itemSubject {
-  margin: 0;
-  font-size: var(--nk-font-size-title, 16px);
-  font-weight: 600;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
-}
-
-.itemMeta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--nk-space-sm, 8px);
-  font-size: var(--nk-font-size-caption, 12px);
-  color: var(--nk-color-text-muted, #5d6866);
-}
-
-.itemBody {
-  padding-top: var(--nk-space-lg, 16px);
-  border-top: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
-}
-
-.itemActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--nk-space-sm, 8px);
-}
-
-.htmlFrame {
-  display: block;
-  width: 100%;
-  height: 40px;
-  border: 0;
-  background: transparent;
-}
-
-.bodyText {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-/* ── announcements ────────────────────────────────────────────────────── */
-
-.overlay {
-  position: fixed;
-  z-index: var(--nk-z-overlay, 1000);
-  display: flex;
-  flex-direction: column;
-  gap: var(--nk-space-sm, 8px);
-  pointer-events: none;
-}
-
-.overlay > * {
-  pointer-events: auto;
-}
-
-.overlayCorner {
-  top: var(--nk-overlay-top, 16px);
-  inset-inline-end: var(--nk-overlay-inline, 16px);
-  width: min(360px, calc(100vw - 32px));
-}
-
-.overlayCornerBottom {
-  top: auto;
-  bottom: var(--nk-overlay-bottom, 16px);
-  flex-direction: column-reverse;
-}
-
-.overlayToast {
-  top: var(--nk-overlay-top, 16px);
-  inset-inline: 0;
-  align-items: center;
-  padding-inline: 16px;
-}
-
-.card {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--nk-space-md, 12px);
-  padding: var(--nk-space-md, 12px) var(--nk-space-md, 12px)
-    var(--nk-space-md, 12px) var(--nk-space-lg, 16px);
-  background: var(--nk-color-surface-raised, #ffffff);
-  border: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
-  border-radius: var(--nk-radius-lg, 14px);
-  box-shadow: var(
-    --nk-shadow,
-    0 14px 36px rgba(20, 35, 33, 0.16),
-    0 2px 6px rgba(20, 35, 33, 0.08)
-  );
-  animation: nk-enter 0.18s ease-out;
-}
-
-.toast {
-  width: min(520px, 100%);
-}
-
-.cardIcon {
-  flex: none;
-  margin-top: 1px;
-  color: var(--nk-color-accent-text, #1d5d58);
-}
-
-.cardText {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--nk-space-xs, 4px);
+  color: var(--nk-color-accent-text, #236b60);
 }
 
 .cardTitle {
-  font-weight: 600;
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .cardBody {
-  font-size: var(--nk-font-size-label, 13px);
-  color: var(--nk-color-text-muted, #5d6866);
-  white-space: pre-wrap;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--nk-color-text-secondary, #4d5856);
+  white-space: pre-line;
   overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -633,235 +1138,218 @@
   overflow: hidden;
 }
 
-.cardClose {
-  margin: -4px -4px 0 0;
+.cardLink {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--nk-color-accent-text, #236b60);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.scrim {
-  position: fixed;
-  inset: 0;
-  z-index: var(--nk-z-overlay, 1000);
-  display: flex;
+.cardLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* new notification */
+
+.inboxToast {
+  width: 100%;
+  gap: 12px;
+  animation: nk-card-in 0.42s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+.inboxToast[data-leaving='true'] {
+  animation: nk-card-out 0.22s ease-in both;
+}
+
+.toastIcon {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  background: var(--nk-color-scrim, rgba(15, 25, 24, 0.4));
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--nk-color-accent-soft, #e0eeea);
+  color: var(--nk-color-accent-text, #236b60);
 }
 
-.dialog {
-  width: min(520px, 100%);
-  max-height: calc(100vh - 32px);
-  display: flex;
-  flex-direction: column;
-  gap: var(--nk-space-lg, 16px);
-  padding: var(--nk-space-xl, 24px);
-  background: var(--nk-color-surface-raised, #ffffff);
-  border-radius: var(--nk-radius-lg, 14px);
-  box-shadow: var(
-    --nk-shadow,
-    0 14px 36px rgba(20, 35, 33, 0.16),
-    0 2px 6px rgba(20, 35, 33, 0.08)
-  );
-  animation: nk-enter 0.18s ease-out;
+/* strip */
+
+.strip {
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px 10px 16px;
+  border-radius: 14px;
+  animation: nk-drop-in 0.36s cubic-bezier(0.2, 0.9, 0.25, 1) both;
 }
 
-.dialogTitle {
-  margin: 0;
-  font-size: var(--nk-font-size-title, 16px);
-  font-weight: 600;
-  line-height: 1.3;
+.strip[data-leaving='true'] {
+  animation: nk-drop-out 0.22s ease-in both;
+}
+
+.stripDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nk-color-accent, #2b7a6e);
+}
+
+.stripText {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 
-.dialogBody {
-  min-height: 0;
-  overflow-y: auto;
-  color: var(--nk-color-text, #1b2524);
+.strip .cardLink {
+  margin-top: 0;
+  white-space: nowrap;
 }
 
-.dialogActions {
+/* the deck */
+
+.deckWrap {
   display: flex;
-  justify-content: flex-end;
-  gap: var(--nk-space-sm, 8px);
+  flex-direction: column;
+  gap: 8px;
 }
 
-.feedIcon {
-  flex: none;
-  display: inline-flex;
-  margin-top: 2px;
-  color: var(--nk-color-accent-text, #1d5d58);
+.deckBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 14px;
+  background: var(--nk-color-deck-bar, rgba(246, 247, 247, 0.94));
+  border: 1px solid var(--nk-color-border-soft, rgba(20, 40, 35, 0.08));
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(20, 40, 35, 0.1);
+  backdrop-filter: blur(8px);
+  animation: nk-rise-in 0.3s cubic-bezier(0.2, 0.9, 0.25, 1) both;
 }
 
-.feedIcon[data-muted='true'] {
-  color: var(--nk-color-text-muted, #5d6866);
+.deckBarTitle {
+  flex: 1 1 auto;
+  font-size: 13px;
+  font-weight: 700;
 }
-
-.feedNote {
-  margin: 0;
-  padding: 0 var(--nk-space-xs, 4px);
-}
-
-/* ── corner deck ──────────────────────────────────────────────────────── */
 
 .deck {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--nk-space-sm, 8px);
+  gap: 8px;
 }
 
 .deckCard {
-  position: relative;
-  transform-origin: 50% 0;
-  transition:
-    transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 0.2s ease;
+  transform-origin: 0 0;
+  animation: nk-card-in 0.42s cubic-bezier(0.2, 0.9, 0.25, 1) both;
 }
 
-/* Folded: the newest card in front; the next two peek out underneath,
-   narrower and blank, like a stack of phone notifications. */
+.deckCard[data-leaving='true'] {
+  animation: nk-card-out 0.22s ease-in both;
+  pointer-events: none;
+}
+
+.deckCard > * {
+  transition: opacity 0.2s ease;
+}
+
+/* Folded: the newest card in front; the next two peek out above it,
+   narrower and fainter - a stack of phone notifications. The scale is
+   taken around the top-left corner and re-centred by the translate, which
+   keeps the layout animation exact. */
 .deck[data-stacked='true'] {
-  margin-bottom: 22px;
-  cursor: pointer;
+  padding-top: 16px;
 }
 
-/* Blank backs, a shade darker, so the layers read as layers. */
-.deck[data-stacked='true'] .deckCard:not(:first-child) {
-  background: color-mix(
-    in srgb,
-    var(--nk-color-surface-raised, #ffffff) 88%,
-    var(--nk-color-text, #1b2524)
-  );
-}
-
-.deck[data-stacked='true'] .deckCard {
-  z-index: calc(10 - var(--nk-deck-i));
-  transform: translateY(calc(min(var(--nk-deck-i), 2) * 11px))
-    scale(calc(1 - min(var(--nk-deck-i), 2) * 0.055));
-  opacity: clamp(0, calc(3 - var(--nk-deck-i)), 1);
-}
-
-.deck[data-stacked='true'] .deckCard:not(:first-child) {
+.deck[data-stacked='true'] .deckCard:not([data-layer='0']) {
   position: absolute;
-  inset: 0;
+  top: 16px;
+  right: 0;
+  bottom: 0;
+  left: 0;
   overflow: hidden;
   pointer-events: none;
 }
 
-.deck[data-stacked='true'] .deckCard:not(:first-child) > * {
-  visibility: hidden;
+.deck[data-stacked='true'] .deckCard:not([data-layer='0']) > * {
+  opacity: 0;
 }
 
-.deck[data-stacked='true']:hover .deckCard,
-.deck[data-stacked='true']:focus-visible .deckCard {
-  transform: translateY(calc(min(var(--nk-deck-i), 2) * 12px))
-    scale(calc(1 - min(var(--nk-deck-i), 2) * 0.04));
+.deck[data-stacked='true'] .deckCard[data-layer='0'] {
+  z-index: 3;
 }
 
-.deck[data-stacked='true']:focus-visible {
-  outline: none;
+.deck[data-stacked='true'] .deckCard[data-layer='1'] {
+  z-index: 2;
+  transform: translate(3.35%, -8px) scale(0.933);
+  background: var(--nk-color-deck-layer, rgba(255, 255, 255, 0.92));
+  box-shadow: 0 6px 16px rgba(20, 40, 35, 0.1);
 }
 
-.deck[data-stacked='true']:focus-visible .deckCard:first-child {
-  outline: 2px solid var(--nk-color-accent, #2a756f);
-  outline-offset: 2px;
+.deck[data-stacked='true'] .deckCard[data-layer='2'],
+.deck[data-stacked='true'] .deckCard[data-layer='3'] {
+  z-index: 1;
+  transform: translate(6.65%, -16px) scale(0.867);
+  background: var(--nk-color-deck-layer, rgba(255, 255, 255, 0.92));
+  box-shadow: 0 4px 12px rgba(20, 40, 35, 0.08);
 }
 
-.cardFooter {
-  margin-top: 2px;
-  font-size: var(--nk-font-size-caption, 12px);
-  font-weight: 500;
-  color: var(--nk-color-accent-text, #1d5d58);
+.deck[data-stacked='true'] .deckCard[data-layer='2'] {
+  opacity: 0.75;
 }
 
-/* Fanned out: a scrollable list. The padding leaves room for the cards'
-   shadows, which the scroll box would otherwise cut into a hard edge. */
+.deck[data-stacked='true'] .deckCard[data-layer='3'] {
+  opacity: 0;
+}
+
+.deck[data-stacked='true'] .deckCard[data-layer='0'] .cardMain {
+  cursor: pointer;
+}
+
+/* Fanned out: a list that scrolls inside the work area. The padding keeps
+   the cards' shadows from being cut by the scroll box. */
 .deck[data-expanded='true'] {
-  max-height: calc(100vh - var(--nk-overlay-top, 16px) - 72px);
+  max-height: calc(var(--nk-dock-height, 100vh) - 140px);
   overflow-y: auto;
-  padding: 6px 20px 40px;
-  margin: -6px -20px -40px;
+  padding: 4px 16px 24px;
+  margin: -4px -16px -24px;
   scrollbar-width: thin;
 }
 
-.deck[data-expanded='true'] .deckCard {
-  animation: nk-enter 0.22s ease-out both;
-  animation-delay: calc(var(--nk-deck-i) * 30ms);
-}
-
-.deckBar {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--nk-space-xs, 4px);
-  align-self: flex-end;
-  padding: 2px;
-  border-radius: var(--nk-radius-md, 10px);
-  background: var(--nk-color-surface-raised, #ffffff);
-  border: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
-  box-shadow: 0 4px 14px rgba(20, 35, 33, 0.12);
-}
-
-/* Anchored to the bottom edge, the stack peeks upwards. */
-.overlayCornerBottom .deck[data-stacked='true'] {
-  margin: 22px 0 0;
-}
-
-.overlayCornerBottom .deck[data-stacked='true'] .deckCard {
-  transform-origin: 50% 100%;
-  transform: translateY(calc(min(var(--nk-deck-i), 2) * -11px))
-    scale(calc(1 - min(var(--nk-deck-i), 2) * 0.055));
-}
-
-.overlayCornerBottom .deck[data-stacked='true']:hover .deckCard {
-  transform: translateY(calc(min(var(--nk-deck-i), 2) * -14px))
-    scale(calc(1 - min(var(--nk-deck-i), 2) * 0.04));
-}
-
-/* On a narrow screen the two overlays would land on top of each other, so
-   the corner cards move to the bottom edge. */
-@media (max-width: 720px) {
-  .overlayCorner {
-    top: auto;
-    bottom: var(--nk-overlay-bottom, 16px);
-    inset-inline: 16px;
-    width: auto;
-  }
-
-  .overlayCorner .deck[data-stacked='true'] {
-    margin: 22px 0 0;
-  }
-
-  .overlayCorner .deck[data-stacked='true'] .deckCard {
-    transform-origin: 50% 100%;
-    transform: translateY(calc(min(var(--nk-deck-i), 2) * -11px))
-      scale(calc(1 - min(var(--nk-deck-i), 2) * 0.055));
-  }
-}
-
-@keyframes nk-enter {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-}
+/* ── reduced motion ───────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
-  .deckCard {
-    transition: none;
-  }
-
-  .deck[data-expanded='true'] .deckCard,
-  .card,
+  .root *,
+  .root *::before,
+  .root *::after,
+  .scrim,
   .dialog,
-  .popover {
-    animation: none;
+  .popover,
+  .row,
+  .state,
+  .deckCard,
+  .deckBar,
+  .inboxToast,
+  .strip,
+  .badge,
+  .readerEnter,
+  .listPane {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
   }
 
   .spinner {
-    animation-duration: 2.4s;
-  }
-
-  .rowChevron {
-    transition: none;
+    animation-duration: 2.4s !important;
+    animation-iteration-count: infinite !important;
   }
 }

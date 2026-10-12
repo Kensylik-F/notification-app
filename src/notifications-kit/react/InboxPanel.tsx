@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
 
 import { isNotificationsError } from '../core';
 import type { InboxEntry } from '../core';
@@ -12,57 +11,27 @@ import {
   useUnreadCount,
 } from './hooks';
 import { InboxRow } from './InboxRow';
+import { useFlip } from './motion';
 import { Button, Spinner, StateBlock, cx } from './primitives';
 import styles from './styles.module.css';
 import { useMarkSeenOnShow } from './useMarkSeen';
 
-// ------------------------------------------------------------ pieces
+// ----------------------------------------------------------------- actions
 
-interface InboxTabsProps {
-  unreadOnly: boolean;
-  onChange: (unreadOnly: boolean) => void;
-}
-
-/** "All / Unread". Exported so a host can put it in its own page header. */
-export function InboxTabs({ unreadOnly, onChange }: InboxTabsProps) {
-  const { t } = useNotificationsContext();
-  const { data: unread } = useUnreadCount();
-  return (
-    <div className={cx(styles.root, styles.tabs)} role='tablist'>
-      <button
-        type='button'
-        role='tab'
-        className={styles.tab}
-        aria-selected={!unreadOnly}
-        onClick={() => onChange(false)}
-      >
-        {t('inbox.tab.all')}
-      </button>
-      <button
-        type='button'
-        role='tab'
-        className={styles.tab}
-        aria-selected={unreadOnly}
-        onClick={() => onChange(true)}
-      >
-        {t('inbox.tab.unread')}
-        {unread !== undefined && unread > 0 && (
-          <span className={styles.tabCount}>{unread}</span>
-        )}
-      </button>
-    </div>
-  );
-}
-
-/** Exported for the same reason as `InboxTabs`. */
-export function MarkAllReadButton() {
+/** "Mark all read". */
+export function MarkAllReadButton({
+  variant = 'outline',
+}: {
+  variant?: 'outline' | 'ghost';
+}) {
   const { t } = useNotificationsContext();
   const { data: unread } = useUnreadCount();
   const { markAllRead } = useInboxCommands();
   return (
     <Button
-      variant='ghost'
-      icon='checkAll'
+      variant={variant}
+      size={variant === 'ghost' ? 'sm' : 'md'}
+      icon={variant === 'ghost' ? undefined : 'checkAll'}
       className={styles.root}
       disabled={!unread || markAllRead.isPending}
       onClick={() => markAllRead.mutate()}
@@ -116,6 +85,10 @@ export function DismissAllButton() {
             total: progress.total,
           })
         : t('inbox.dismissAll.progressNoTotal', { done: progress.done });
+    const ratio =
+      progress.total && progress.total > 0
+        ? Math.min(1, progress.done / progress.total)
+        : null;
     return (
       <div className={cx(styles.root, styles.dismissAll)} role='status'>
         {running && <Spinner label={of} />}
@@ -124,8 +97,13 @@ export function DismissAllButton() {
           {progress.failed > 0 &&
             ` · ${t('inbox.dismissAll.failed', { failed: progress.failed })}`}
         </span>
+        {running && ratio !== null && (
+          <span className={styles.miniProgress} aria-hidden='true'>
+            <span style={{ transform: `scaleX(${ratio})` }} />
+          </span>
+        )}
         {running && (
-          <Button variant='ghost' onClick={stop}>
+          <Button variant='ghost' size='sm' onClick={stop}>
             {t('inbox.dismissAll.stop')}
           </Button>
         )}
@@ -137,7 +115,6 @@ export function DismissAllButton() {
   return (
     <div ref={rootRef} className={cx(styles.root, styles.confirmAnchor)}>
       <Button
-        variant='ghost'
         icon='close'
         disabled={nothing}
         aria-expanded={confirming}
@@ -156,10 +133,11 @@ export function DismissAllButton() {
             {t('inbox.dismissAll.confirmNote')}
           </span>
           <div className={styles.confirmActions}>
-            <Button onClick={() => setConfirming(false)}>
+            <Button size='sm' onClick={() => setConfirming(false)}>
               {t('inbox.dismissAll.cancel')}
             </Button>
             <Button
+              size='sm'
               variant='primary'
               onClick={() => {
                 setConfirming(false);
@@ -175,27 +153,36 @@ export function DismissAllButton() {
   );
 }
 
-// -------------------------------------------------------------- list
+/** "Mark all read" and "Dismiss all" side by side - for a page header. */
+export function InboxActions() {
+  return (
+    <div className={cx(styles.root, styles.actions)}>
+      <MarkAllReadButton />
+      <DismissAllButton />
+    </div>
+  );
+}
+
+// -------------------------------------------------------------------- list
 
 export interface InboxListProps {
   unreadOnly?: boolean;
   pageSize?: number;
   /** Show at most this many rows and no "more" control (bell dropdown). */
   limit?: number;
-  /**
-   * A row opens in place: a click expands it, shows the text and marks it
-   * read. With this prop an expanded row also offers "Open separately" -
-   * for a host that keeps a page per notification.
-   */
-  onOpenItem?: (entry: InboxEntry) => void;
-  /** Extra controls inside an expanded row. */
-  rowActions?: (entry: InboxEntry) => ReactNode;
-  /** Mark a row read when it is expanded. Default: `true`. */
-  markReadOnExpand?: boolean;
+  /** The highlighted row. */
+  selectedId?: string | null;
+  /** A row was clicked. The row is marked read first (that is what opening
+   *  means in the contract) unless `markReadOnSelect` is `false`. */
+  onSelect?: (entry: InboxEntry) => void;
+  markReadOnSelect?: boolean;
   /** Report shown rows as seen. Default: `true`. */
   markSeen?: boolean;
-  /** Offer "dismiss" in an expanded row. Default: `true`. */
-  dismissible?: boolean;
+  /** Rows playing their exit animation. */
+  leaving?: ReadonlySet<string>;
+  /** A simulated row shown first (the composer's preview). */
+  previewEntry?: InboxEntry | null;
+  onSelectPreview?: () => void;
 }
 
 function errorNote(
@@ -212,33 +199,34 @@ export function InboxList({
   unreadOnly = false,
   pageSize,
   limit,
-  onOpenItem,
-  rowActions,
-  markReadOnExpand = true,
+  selectedId,
+  onSelect,
+  markReadOnSelect = true,
   markSeen = true,
-  dismissible = true,
+  leaving,
+  previewEntry,
+  onSelectPreview,
 }: InboxListProps) {
   const { t, enabled } = useNotificationsContext();
   const list = useInboxList({ unreadOnly, pageSize: limit ?? pageSize });
-  const { dismiss, markRead } = useInboxCommands();
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { markRead } = useInboxCommands();
+  const listRef = useRef<HTMLUListElement>(null);
+  const flip = useFlip(listRef, { relative: true });
 
   const entries =
     limit !== undefined ? list.entries.slice(0, limit) : list.entries;
-  const details = useInboxDetails(
-    entries,
-    expandedId === null ? [] : [expandedId]
-  );
+  const details = useInboxDetails(entries, selectedId ? [selectedId] : []);
   useMarkSeenOnShow(entries, markSeen && enabled);
 
-  const toggle = (entry: InboxEntry) => {
-    if (expandedId === entry.id) {
-      setExpandedId(null);
-      return;
-    }
-    setExpandedId(entry.id);
-    // Reading the text in place is what "read" means in the contract.
-    if (markReadOnExpand && !entry.read) markRead.mutate(entry.id);
+  // Every commit remembers where the rows were, so a row that leaves (or
+  // arrives) moves the others smoothly instead of making them jump.
+  useEffect(() => {
+    flip.capture();
+  });
+
+  const select = (entry: InboxEntry) => {
+    if (markReadOnSelect && !entry.read) markRead.mutate(entry.id);
+    onSelect?.(entry);
   };
 
   // One reading of the clock per render keeps every row's time consistent.
@@ -266,9 +254,10 @@ export function InboxList({
     );
   }
 
-  if (entries.length === 0) {
+  if (entries.length === 0 && !previewEntry) {
     return (
       <StateBlock
+        icon='bell'
         title={unreadOnly ? t('inbox.emptyUnread') : t('inbox.empty')}
       />
     );
@@ -276,89 +265,39 @@ export function InboxList({
 
   return (
     <>
-      <ul className={styles.list}>
+      <ul ref={listRef} className={styles.list}>
+        {previewEntry && (
+          <InboxRow
+            key={previewEntry.id}
+            entry={previewEntry}
+            full={previewEntry}
+            now={now}
+            preview
+            onSelect={() => onSelectPreview?.()}
+          />
+        )}
         {entries.map(entry => (
           <InboxRow
             key={entry.id}
             entry={entry}
             full={details.items.get(entry.id)}
-            fullError={details.errors.get(entry.id)}
             now={now}
-            expanded={expandedId === entry.id}
-            onToggle={toggle}
-            onOpenSeparately={onOpenItem}
-            actions={rowActions}
-            onDismiss={
-              dismissible
-                ? target => {
-                    setExpandedId(null);
-                    dismiss.mutate(target.id);
-                  }
-                : undefined
-            }
+            selected={selectedId === entry.id}
+            leaving={leaving?.has(entry.id)}
+            onSelect={select}
           />
         ))}
       </ul>
-      {limit === undefined && (
-        <div className={styles.panelFooter}>
-          <span>
-            {list.total !== null
-              ? t('inbox.total', { count: list.total })
-              : null}
-          </span>
-          {list.hasNextPage && (
-            <Button
-              disabled={list.isFetchingNextPage}
-              onClick={() => void list.fetchNextPage()}
-            >
-              {t('inbox.loadMore')}
-            </Button>
-          )}
+      {limit === undefined && list.hasNextPage && (
+        <div className={styles.listFooter}>
+          <Button
+            disabled={list.isFetchingNextPage}
+            onClick={() => void list.fetchNextPage()}
+          >
+            {list.isFetchingNextPage ? t('item.loading') : t('inbox.loadMore')}
+          </Button>
         </div>
       )}
     </>
-  );
-}
-
-// ------------------------------------------------------------- panel
-
-export interface InboxPanelProps
-  extends Omit<InboxListProps, 'unreadOnly' | 'limit'> {
-  /** Controlled filter. Leave both out to let the panel own it. */
-  unreadOnly?: boolean;
-  onUnreadOnlyChange?: (unreadOnly: boolean) => void;
-  /** Hide the built-in bar when the host renders `InboxTabs` and
-   *  `MarkAllReadButton` in its own page header. Default: `true`. */
-  showBar?: boolean;
-}
-
-/** The whole inbox: filter, "mark all read", rows, paging. */
-export function InboxPanel({
-  unreadOnly,
-  onUnreadOnlyChange,
-  showBar = true,
-  ...listProps
-}: InboxPanelProps) {
-  const [ownUnreadOnly, setOwnUnreadOnly] = useState(false);
-  const controlled = unreadOnly !== undefined;
-  const value = controlled ? unreadOnly : ownUnreadOnly;
-  const change = (next: boolean) => {
-    if (!controlled) setOwnUnreadOnly(next);
-    onUnreadOnlyChange?.(next);
-  };
-
-  return (
-    <div className={cx(styles.root, styles.panel)}>
-      {showBar && (
-        <div className={styles.panelBar}>
-          <InboxTabs unreadOnly={value} onChange={change} />
-          <div className={styles.panelActions}>
-            <MarkAllReadButton />
-            <DismissAllButton />
-          </div>
-        </div>
-      )}
-      <InboxList unreadOnly={value} {...listProps} />
-    </div>
   );
 }

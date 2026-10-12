@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import type {
@@ -13,6 +13,8 @@ import { createTranslate } from './messages';
 import type { Messages, Translate } from './messages';
 import { defaultPresentation } from './presentation';
 import type { PresentationResolver } from './presentation';
+import { createPreviewStore } from './previewStore';
+import type { PreviewStore } from './previewStore';
 
 export interface PollingOptions {
   /** How often the unread badge is refreshed. The service has no push
@@ -159,6 +161,8 @@ export interface NotificationsContextValue {
   onError: (error: unknown) => void;
   admin: ResolvedAdminOptions;
   storageScope: string;
+  /** What the administration forms are previewing on this page. */
+  preview: PreviewStore;
 }
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(
@@ -204,6 +208,7 @@ export function NotificationsProvider({
   children,
 }: NotificationsProviderProps) {
   const resolvedAdmin = useMemo(() => resolveAdmin(admin), [admin]);
+  const [preview] = useState(createPreviewStore);
   const unreadCountMs = polling?.unreadCountMs ?? 60_000;
   const announcementsMs = polling?.announcementsMs ?? 300_000;
 
@@ -221,6 +226,7 @@ export function NotificationsProvider({
       onError,
       admin: resolvedAdmin,
       storageScope,
+      preview,
     }),
     [
       api,
@@ -237,6 +243,7 @@ export function NotificationsProvider({
       onError,
       resolvedAdmin,
       storageScope,
+      preview,
     ]
   );
 

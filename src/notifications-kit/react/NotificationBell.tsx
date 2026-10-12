@@ -13,13 +13,15 @@ import type { InboxEntry } from '../core';
 import { useNotificationsContext } from './context';
 import { useUnreadCount } from './hooks';
 import { InboxList, MarkAllReadButton } from './InboxPanel';
+import { useKitPreview } from './preview';
 import { Button, IconButton, cx } from './primitives';
 import styles from './styles.module.css';
 
 export interface NotificationBellProps {
   /** Rows in the dropdown. Default: 5. */
   limit?: number;
-  /** Adds "Open separately" to an expanded row. The dropdown closes first. */
+  /** A row was clicked: open that notification (e.g. the notifications
+   *  page with it selected). The dropdown closes first. */
   onOpenItem?: (entry: InboxEntry) => void;
   /** Opens the full inbox. Without it the footer link is not rendered. */
   onOpenAll?: () => void;
@@ -78,7 +80,11 @@ export function NotificationBell({
   className,
 }: NotificationBellProps) {
   const { t } = useNotificationsContext();
-  const { data: unread = 0 } = useUnreadCount();
+  const { data: realUnread = 0 } = useUnreadCount();
+  const [preview] = useKitPreview();
+  const previewEntry = preview?.kind === 'inbox' ? preview.entry : null;
+  // The composer's preview lands here like a real arrival.
+  const unread = realUnread + (previewEntry ? 1 : 0);
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<CSSProperties | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -148,26 +154,24 @@ export function NotificationBell({
               <h2 id={titleId} className={styles.popoverTitle}>
                 {t('bell.title')}
               </h2>
-              <MarkAllReadButton />
+              <MarkAllReadButton variant='ghost' />
             </div>
             <div className={styles.popoverBody}>
               <InboxList
                 limit={limit}
-                dismissible={false}
-                onOpenItem={
-                  onOpenItem
-                    ? entry => {
-                        close();
-                        onOpenItem(entry);
-                      }
-                    : undefined
-                }
+                previewEntry={previewEntry}
+                onSelectPreview={() => close()}
+                onSelect={entry => {
+                  close();
+                  onOpenItem?.(entry);
+                }}
               />
             </div>
             {onOpenAll && (
               <div className={styles.popoverFooter}>
                 <Button
                   variant='ghost'
+                  size='sm'
                   onClick={() => {
                     close();
                     onOpenAll();
@@ -193,7 +197,8 @@ export function NotificationBell({
         onClick={() => setOpen(value => !value)}
       >
         {unread > 0 && (
-          <span className={styles.badge} aria-hidden='true'>
+          // Keyed by the number, so a new arrival replays the bump.
+          <span key={unread} className={styles.badge} aria-hidden='true'>
             {formatCount(unread)}
           </span>
         )}

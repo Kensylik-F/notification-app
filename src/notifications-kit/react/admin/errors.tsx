@@ -24,9 +24,23 @@ export function describeError(
       note: [error.detail, trace].filter(Boolean).join(' · ') || undefined,
     };
   }
+  if (error.detail || error.title) {
+    return { title: (error.detail || error.title) as string, note: trace };
+  }
+  // No problem document: a gateway, a stub, or a route that does not exist.
+  // The status and the call are what someone will need to look into it.
+  const call = t('admin.error.call', { operation: error.operation });
+  if (error.status === 404) {
+    return {
+      title: t('admin.error.notFound'),
+      note: [call, trace].filter(Boolean).join(' · '),
+    };
+  }
   return {
-    title: error.detail || error.title || t('admin.error.generic'),
-    note: trace,
+    title: error.status
+      ? t('admin.error.status', { status: error.status })
+      : t('admin.error.generic'),
+    note: [call, trace].filter(Boolean).join(' · '),
   };
 }
 

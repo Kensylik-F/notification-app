@@ -35,14 +35,23 @@ interface MessageFieldsProps {
   errors: ContentErrors;
 }
 
-/** What the message says: text in the editor, or a service template by key. */
-export function MessageFields({ value, onChange, errors }: MessageFieldsProps) {
+/**
+ * "Own text / Service template". Mounted in the section header; remembers
+ * what was typed in the other mode, so switching back loses nothing.
+ * Renders nothing when the deployment has no free-form template.
+ */
+export function MessageModeSwitch({
+  value,
+  onChange,
+}: {
+  value: MessageContent;
+  onChange: (next: MessageContent) => void;
+}) {
   const { t, admin } = useNotificationsContext();
-  const canWrite = Boolean(admin.freeformTemplateKey);
-  // What was typed in the other mode, so switching back does not lose it.
   const other = useRef<Partial<Record<MessageContent['mode'], MessageContent>>>(
     {}
   );
+  if (!admin.freeformTemplateKey) return null;
   const switchMode = (mode: MessageContent['mode']) => {
     if (mode === value.mode) return;
     other.current[value.mode] = value;
@@ -51,20 +60,26 @@ export function MessageFields({ value, onChange, errors }: MessageFieldsProps) {
         (mode === 'freeform' ? EMPTY_FREEFORM : EMPTY_TEMPLATE)
     );
   };
+  return (
+    <Segmented
+      name='nk-message-mode'
+      label={t('compose.section.message')}
+      value={value.mode}
+      options={[
+        { value: 'freeform', label: t('message.mode.freeform') },
+        { value: 'template', label: t('message.mode.template') },
+      ]}
+      onChange={switchMode}
+    />
+  );
+}
 
+/** What the message says: text in the editor, or a service template by key. */
+export function MessageFields({ value, onChange, errors }: MessageFieldsProps) {
+  const { t, admin } = useNotificationsContext();
+  const canWrite = Boolean(admin.freeformTemplateKey);
   return (
     <div className={styles.stack}>
-      {canWrite && (
-        <Segmented
-          name='nk-message-mode'
-          value={value.mode}
-          options={[
-            { value: 'freeform', label: t('message.mode.freeform') },
-            { value: 'template', label: t('message.mode.template') },
-          ]}
-          onChange={switchMode}
-        />
-      )}
       {value.mode === 'freeform' ? (
         canWrite ? (
           <FreeformFields
