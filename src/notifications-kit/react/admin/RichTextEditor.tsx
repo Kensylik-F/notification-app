@@ -141,15 +141,6 @@ export function RichTextEditor({
     return () => document.removeEventListener('selectionchange', refreshStates);
   }, [refreshStates]);
 
-  // Enter starts a paragraph rather than a bare <div>.
-  useEffect(() => {
-    try {
-      document.execCommand('defaultParagraphSeparator', false, 'p');
-    } catch {
-      // Older engines: the cleaner turns divs into paragraphs anyway.
-    }
-  }, []);
-
   const run = (command: string, argument?: string) => {
     areaRef.current?.focus();
     document.execCommand(command, false, argument);
@@ -401,11 +392,12 @@ export function RichTextEditor({
           spellCheck={false}
           aria-label={ariaLabel}
           aria-describedby={describedBy}
-          onChange={event => setSource(event.target.value)}
-          onBlur={() => {
-            const clean = sanitizeHtml(source);
+          onChange={event => {
+            // The form and the preview follow the markup as it is typed;
+            // the textarea keeps exactly what was typed.
+            setSource(event.target.value);
             emitted.current = null;
-            onChange(clean);
+            onChange(sanitizeHtml(event.target.value));
           }}
         />
       )}

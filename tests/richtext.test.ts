@@ -27,6 +27,23 @@ describe('sanitizeHtml', () => {
       '<p>plain <em>text</em></p>'
     );
   });
+
+  it('never puts a block inside a paragraph', () => {
+    expect(
+      sanitizeHtml(
+        'Строка&nbsp;один<div>два<ul><li>пункт</li></ul></div><p>три<blockquote>цитата</blockquote></p>'
+      )
+    ).toBe(
+      '<p>Строка один</p><p>два</p><ul><li>пункт</li></ul><p>три</p><blockquote>цитата</blockquote>'
+    );
+  });
+
+  it('reads an editor with only empty lines as empty', () => {
+    expect(
+      sanitizeHtml('<p><br></p><div><br></div><ul><li><br></li></ul>')
+    ).toBe('');
+    expect(sanitizeHtml('<br><br>')).toBe('');
+  });
 });
 
 describe('htmlToText', () => {
@@ -35,10 +52,12 @@ describe('htmlToText', () => {
       '<h2>Работы</h2><p>Сервис будет <strong>недоступен</strong>.</p>' +
       '<ul><li>с 22:00</li><li>до 23:00</li></ul>' +
       '<ol><li>Сохраните</li><li>Выйдите</li></ol>' +
-      '<p>Подробнее: <a href="https://sber.ru/x">страница</a></p>';
+      '<p>Подробнее: <a href="https://sber.ru/x">страница</a></p>' +
+      '<p>Пишите на <a href="mailto:help@sber.ru">help@sber.ru</a></p>';
     expect(htmlToText(html)).toBe(
       'Работы\n\nСервис будет недоступен.\n\n• с 22:00\n• до 23:00\n\n' +
-        '1. Сохраните\n2. Выйдите\n\nПодробнее: страница (https://sber.ru/x)'
+        '1. Сохраните\n2. Выйдите\n\nПодробнее: страница (https://sber.ru/x)\n\n' +
+        'Пишите на help@sber.ru'
     );
   });
 });

@@ -56,16 +56,49 @@ const DROP = new Set([
 
 const SAFE_HREF = /^(https?:|mailto:)/i;
 
+/** Blocks that cannot sit inside a paragraph. */
+const NOT_IN_PARAGRAPH = new Set([
+  'p',
+  'div',
+  'ul',
+  'ol',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'blockquote',
+  'pre',
+  'hr',
+  'table',
+  'section',
+  'article',
+]);
+
+const hasBlockChild = (element: Element) =>
+  Array.from(element.children).some(child =>
+    NOT_IN_PARAGRAPH.has(child.tagName.toLowerCase())
+  );
+
 function cleanChildren(source: Node, target: Node, doc: Document) {
   source.childNodes.forEach(child => {
     if (child.nodeType === Node.TEXT_NODE) {
-      target.appendChild(doc.createTextNode(child.textContent ?? ''));
+      // Editors pad formatting edges with no-break spaces; mail wants plain.
+      const text = (child.textContent ?? '').replace(/\u00a0/g, ' ');
+      target.appendChild(doc.createTextNode(text));
       return;
     }
     if (child.nodeType !== Node.ELEMENT_NODE) return;
     const element = child as Element;
     let tag = element.tagName.toLowerCase();
     if (DROP.has(tag)) return;
+    // A wrapper holding blocks (an editor's <div> around a list) is
+    // dissolved: a list or heading inside a paragraph is invalid markup.
+    if ((tag === 'div' || tag === 'p') && hasBlockChild(element)) {
+      dissolve(element, target, doc);
+      return;
+    }
     tag = RENAME[tag] ?? tag;
     if (!BLOCKS.has(tag) && !INLINE.has(tag)) {
       // Unknown wrapper (span, font, section…): keep its text, lose the tag.
@@ -85,6 +118,31 @@ function cleanChildren(source: Node, target: Node, doc: Document) {
     }
     cleanChildren(element, clean, doc);
     target.appendChild(clean);
+  });
+}
+
+/** A wrapper's children at its own level: runs of text and inline markup
+ *  become paragraphs, blocks stay blocks. */
+function dissolve(element: Element, target: Node, doc: Document) {
+  let run: HTMLElement | null = null;
+  element.childNodes.forEach(child => {
+    const isBlock =
+      child.nodeType === Node.ELEMENT_NODE &&
+      NOT_IN_PARAGRAPH.has((child as Element).tagName.toLowerCase());
+    if (isBlock) {
+      run = null;
+      const holder = doc.createElement('div');
+      holder.appendChild(child.cloneNode(true));
+      cleanChildren(holder, target, doc);
+      return;
+    }
+    if (!run) {
+      run = doc.createElement('p');
+      target.appendChild(run);
+    }
+    const holder = doc.createElement('div');
+    holder.appendChild(child.cloneNode(true));
+    cleanChildren(holder, run, doc);
   });
 }
 
@@ -117,10 +175,16 @@ export function sanitizeHtml(html: string): string {
     }
     loose.appendChild(node.cloneNode(true));
   });
-  // Empty paragraphs left by the editor.
-  out.querySelectorAll('p').forEach(p => {
-    if (!p.textContent?.trim() && !p.querySelector('br')) p.remove();
+  // Empty lines left by the editor (`<p><br></p>`): paragraphs already
+  // have their own spacing, and an all-empty body must read as empty.
+  out.querySelectorAll('p, h2, h3, li, blockquote').forEach(block => {
+    if (!block.textContent?.trim()) block.remove();
   });
+  out.querySelectorAll('ul, ol').forEach(list => {
+    if (!list.querySelector('li')) list.remove();
+  });
+  // Only line breaks or rules left: nothing was written.
+  if (!out.textContent?.trim()) return '';
   return out.innerHTML.trim();
 }
 
@@ -173,9 +237,8 @@ export function htmlToText(html: string): string {
         const before = current.length;
         walk(el, listDepth, ordered);
         const text = current.slice(before).trim();
-        const href = el.getAttribute('href') ?? '';
-        if (href && href !== text)
-          current += ` (${href.replace(/^mailto:/, '')})`;
+        const target = (el.getAttribute('href') ?? '').replace(/^mailto:/i, '');
+        if (target && target !== text) current += ` (${target})`;
         return;
       }
       const block = /^(p|h2|h3|blockquote|pre|div)$/.test(tag);

@@ -156,13 +156,16 @@ export function Segmented<T extends string>({
   options,
   onChange,
 }: {
-  name: string;
+  /** Prefix of the radio group name; the group is unique per instance. */
+  name?: string;
   value: T;
   options: readonly ChoiceOption<T>[];
   onChange: (value: T) => void;
 }) {
+  // Two forms on one page must not share a radio group.
+  const group = `${name ?? 'nk-choice'}-${useId()}`;
   return (
-    <div className={styles.segmented}>
+    <div className={styles.segmented} role='radiogroup'>
       {options.map(option => (
         <label
           key={option.value}
@@ -172,7 +175,7 @@ export function Segmented<T extends string>({
         >
           <input
             type='radio'
-            name={name}
+            name={group}
             value={option.value}
             checked={option.value === value}
             disabled={option.disabled}

@@ -73,6 +73,11 @@ if (run('inbox')) {
     .click();
   await wait(page, 900);
   await shot(page, '05-row-html');
+  await page.getByRole('button', { name: 'Тёмная тема' }).click();
+  await wait(page, 700);
+  await shot(page, '05b-row-html-after-theme-switch');
+  await page.getByRole('button', { name: 'Светлая тема' }).click();
+  await wait(page, 500);
   await page.getByRole('button', { name: 'Закрыть все' }).click();
   await wait(page, 300);
   await shot(page, '06-dismiss-all-confirm');
@@ -126,6 +131,14 @@ if (run('compose')) {
   await acknowledge(page);
   await quietOverlays(page);
   await shot(page, '20-compose-empty');
+  // Type and erase: the placeholder must come back and the body read empty.
+  await page.getByRole('textbox', { name: 'Текст' }).click();
+  await page.keyboard.type('x');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Backspace');
+  await wait(page, 200);
+  await shot(page, '20b-compose-editor-erased');
   await page.getByRole('button', { name: 'Отправить' }).click();
   await wait(page, 200);
   await shot(page, '21-compose-errors');

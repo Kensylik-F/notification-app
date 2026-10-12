@@ -82,6 +82,8 @@ function useLabels() {
   return {
     category: (code: string) =>
       admin.categories.find(c => c.code === code)?.label ?? code,
+    role: (code: string | null | undefined) =>
+      admin.roles.find(r => r.code === code)?.label ?? code ?? '',
     audience: (type: AudienceType | null | undefined, value?: string | null) =>
       type === 'ROLE'
         ? `${t('announce.audience.ROLE')}: ${
@@ -345,7 +347,7 @@ export function AnnouncementPublisher({
               {state.audienceType === 'EVERYONE'
                 ? t('announce.confirm.everyone')
                 : t('announce.confirm.role', {
-                    role: labels.audience('ROLE', state.audienceValue),
+                    role: labels.role(state.audienceValue),
                   })}{' '}
               {t('announce.confirm.final')}
             </span>

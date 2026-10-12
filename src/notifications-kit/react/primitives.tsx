@@ -155,19 +155,54 @@ function frameDocument(html: string, host: HTMLElement | null): string {
  */
 export function HtmlFrame({ html, title }: { html: string; title: string }) {
   const ref = useRef<HTMLIFrameElement>(null);
+  const observer = useRef<ResizeObserver | null>(null);
 
   const fit = useCallback(() => {
     const frame = ref.current;
-    const height = frame?.contentDocument?.documentElement.scrollHeight;
-    if (frame && height) {
-      frame.style.height = `${Math.min(MAX_FRAME, Math.max(MIN_FRAME, height))}px`;
-    }
+    const body = frame?.contentDocument?.body;
+    if (!frame || !body) return;
+    // The body, not the root: the root is at least as tall as the frame
+    // itself, so it could only ever grow.
+    const height = Math.ceil(body.getBoundingClientRect().height);
+    frame.style.height = `${Math.min(MAX_FRAME, Math.max(MIN_FRAME, height))}px`;
   }, []);
 
+  // Late layout changes - fonts, images, a narrower column - resize it too.
+  const onLoad = useCallback(() => {
+    observer.current?.disconnect();
+    const body = ref.current?.contentDocument?.body;
+    if (body && typeof ResizeObserver !== 'undefined') {
+      observer.current = new ResizeObserver(fit);
+      observer.current.observe(body);
+    }
+    fit();
+  }, [fit]);
+
+  useEffect(() => () => observer.current?.disconnect(), []);
+
+  // Written again when the page's theme changes (a class or attribute on
+  // <html>/<body>, or the system scheme), so the text keeps the page colour.
   useEffect(() => {
     const frame = ref.current;
     if (!frame) return;
-    frame.srcdoc = frameDocument(html, frame.parentElement);
+    let current = '';
+    const write = () => {
+      const next = frameDocument(html, frame.parentElement);
+      if (next !== current) {
+        current = next;
+        frame.srcdoc = next;
+      }
+    };
+    write();
+    const watcher = new MutationObserver(write);
+    watcher.observe(document.documentElement, { attributes: true });
+    watcher.observe(document.body, { attributes: true });
+    const scheme = window.matchMedia?.('(prefers-color-scheme: dark)');
+    scheme?.addEventListener?.('change', write);
+    return () => {
+      watcher.disconnect();
+      scheme?.removeEventListener?.('change', write);
+    };
   }, [html]);
 
   return (
@@ -176,7 +211,7 @@ export function HtmlFrame({ html, title }: { html: string; title: string }) {
       className={styles.htmlFrame}
       title={title}
       sandbox='allow-same-origin allow-popups allow-popups-to-escape-sandbox'
-      onLoad={fit}
+      onLoad={onLoad}
     />
   );
 }

@@ -82,7 +82,13 @@ export function DeliveryTable({ rows, onShowRequest }: DeliveryTableProps) {
   const now = Date.now();
   // History and content need the support role; a sender sees the rows only.
   const expandable = admin.permissions.deliveries;
-  const templateName = (key: string | null | undefined) => key || '—';
+  // The free-form template is the editor's text, not a template anyone named.
+  const templateName = (key: string | null | undefined) =>
+    !key
+      ? '—'
+      : key === admin.freeformTemplateKey
+        ? t('message.mode.freeform')
+        : key;
 
   return (
     <div className={styles.tableWrap}>

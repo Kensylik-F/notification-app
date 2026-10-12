@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+
 import type { ContentErrors, MessageContent, VariablePair } from '../../core';
 import { MAX_SUBJECT_LENGTH } from '../../core';
 import { useNotificationsContext } from '../context';
@@ -37,6 +39,18 @@ interface MessageFieldsProps {
 export function MessageFields({ value, onChange, errors }: MessageFieldsProps) {
   const { t, admin } = useNotificationsContext();
   const canWrite = Boolean(admin.freeformTemplateKey);
+  // What was typed in the other mode, so switching back does not lose it.
+  const other = useRef<Partial<Record<MessageContent['mode'], MessageContent>>>(
+    {}
+  );
+  const switchMode = (mode: MessageContent['mode']) => {
+    if (mode === value.mode) return;
+    other.current[value.mode] = value;
+    onChange(
+      other.current[mode] ??
+        (mode === 'freeform' ? EMPTY_FREEFORM : EMPTY_TEMPLATE)
+    );
+  };
 
   return (
     <div className={styles.stack}>
@@ -48,9 +62,7 @@ export function MessageFields({ value, onChange, errors }: MessageFieldsProps) {
             { value: 'freeform', label: t('message.mode.freeform') },
             { value: 'template', label: t('message.mode.template') },
           ]}
-          onChange={mode =>
-            onChange(mode === 'freeform' ? EMPTY_FREEFORM : EMPTY_TEMPLATE)
-          }
+          onChange={switchMode}
         />
       )}
       {value.mode === 'freeform' ? (

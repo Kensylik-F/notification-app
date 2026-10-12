@@ -1250,8 +1250,16 @@
   font: inherit;
 }
 
+.editorArea {
+  position: relative;
+}
+
+/* Over the first line, whatever empty markup the browser left there. */
 .editorArea[data-empty='true']::before {
   content: attr(data-placeholder);
+  position: absolute;
+  top: 10px;
+  left: 12px;
   color: var(--nk-color-text-muted, #5d6866);
   pointer-events: none;
 }

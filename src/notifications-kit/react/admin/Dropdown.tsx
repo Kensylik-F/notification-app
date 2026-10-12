@@ -288,6 +288,7 @@ export function Combobox({
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
         onKeyDown={onKeyDown}
         data-labelled={known ? true : undefined}
       />

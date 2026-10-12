@@ -69,8 +69,8 @@ function lookup(vars: Record<string, unknown>, path: string): unknown {
     );
 }
 
-const present = (value: unknown) =>
-  value !== undefined && value !== null && value !== '';
+// As in FreeMarker: only a missing or null value is missing; "" is a value.
+const present = (value: unknown) => value !== undefined && value !== null;
 
 function renderFtl(source: string, vars: Record<string, unknown>): string {
   let text = source.replace(/<#--[\s\S]*?-->/g, '');
