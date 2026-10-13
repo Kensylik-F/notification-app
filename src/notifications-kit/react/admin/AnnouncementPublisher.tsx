@@ -19,7 +19,6 @@ import type {
 import { useNotificationsContext } from '../context';
 import { formatDateTime, formatDay } from '../format';
 import type { AnnouncementPresentation } from '../presentation';
-import { useDockObstacle } from '../dock';
 import { useKitPreview } from '../preview';
 import {
   Button,
@@ -260,9 +259,7 @@ export function AnnouncementPublisher({
   const preview = useAnnouncementPreview(state.content);
   const confirmTitle = useDomId('nk-confirm');
   const publishRef = useRef<HTMLButtonElement>(null);
-  const barRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  useDockObstacle(barRef);
   useClearPreviewOnLeave();
 
   if (!admin.permissions.announce) {
@@ -567,7 +564,7 @@ export function AnnouncementPublisher({
         )}
       </form>
 
-      <div className={styles.actionBar} ref={barRef}>
+      <div className={styles.actionBar}>
         <span className={styles.actionSummary}>
           {showErrors && !valid ? (
             <span className={styles.fieldError}>{t('compose.fixErrors')}</span>

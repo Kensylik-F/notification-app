@@ -63,7 +63,7 @@
 @keyframes nk-card-in {
   from {
     opacity: 0;
-    transform: translateY(18px) scale(0.96);
+    transform: translate(24px, -8px) scale(0.96);
   }
 }
 
@@ -998,36 +998,32 @@
 
 /* ── overlays: the dock ───────────────────────────────────────────────── */
 
-/* Mirrors the work area (or the window): the overlays are placed inside
-   it, so they never cover the page header or a side panel. */
+/* Over the whole page: a column of cards in the top-right corner, under
+   the page header, and strips at the top centre. */
 .dock {
   position: fixed;
+  inset: 0;
   z-index: var(--nk-z-overlay, 1000);
   pointer-events: none;
 }
 
 .dockCorner {
   position: absolute;
-  right: 24px;
-  bottom: calc(24px + var(--nk-dock-inset, 0px));
-  transition: bottom 0.3s cubic-bezier(0.2, 0.9, 0.25, 1);
-  width: min(360px, calc(100% - 32px));
+  top: calc(var(--nk-overlay-top, 16px) + var(--nk-strips-offset, 0px));
+  transition: top 0.3s cubic-bezier(0.2, 0.9, 0.25, 1);
+  right: var(--nk-overlay-right, 16px);
+  width: min(360px, calc(100vw - 32px));
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 12px;
 }
 
-.dock[data-narrow='true'] .dockCorner {
-  right: 16px;
-  bottom: calc(16px + var(--nk-dock-inset, 0px));
-}
-
 .dockTop {
   position: absolute;
-  top: 16px;
+  top: var(--nk-overlay-top, 16px);
   left: 50%;
-  width: min(560px, calc(100% - 32px));
+  width: min(560px, calc(100vw - 32px));
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
@@ -1037,6 +1033,14 @@
 .dockCorner > *,
 .dockTop > * {
   pointer-events: auto;
+}
+
+@media (max-width: 720px) {
+  .dockCorner {
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
 }
 
 /* cards: the deck, new notifications, strips */
@@ -1216,6 +1220,53 @@
 
 /* the deck */
 
+.deckChip {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px 0 14px;
+  border: 1px solid var(--nk-color-border-soft, rgba(20, 40, 35, 0.08));
+  border-radius: 18px;
+  background: var(--nk-color-surface-raised, #ffffff);
+  box-shadow: var(
+    --nk-shadow,
+    0 12px 32px rgba(20, 40, 35, 0.16),
+    0 2px 6px rgba(20, 40, 35, 0.06)
+  );
+  color: var(--nk-color-text, #1b2321);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transform-origin: top right;
+  animation: nk-chip-in 0.36s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+.deckChip:hover {
+  background: var(--nk-color-surface-hover-raised, #f6f8f7);
+}
+
+.deckChip:focus-visible {
+  outline: 2px solid var(--nk-color-accent, #2b7a6e);
+  outline-offset: 2px;
+}
+
+.deckChipDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nk-color-accent, #2b7a6e);
+}
+
+@keyframes nk-chip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6, 0.4);
+  }
+}
+
 .deckWrap {
   display: flex;
   flex-direction: column;
@@ -1262,19 +1313,20 @@
   transition: opacity 0.2s ease;
 }
 
-/* Folded: the newest card in front; the next two peek out above it,
+/* Folded: the newest card in front; the next two peek out under it,
    narrower and fainter - a stack of phone notifications. The scale is
-   taken around the top-left corner and re-centred by the translate, which
-   keeps the layout animation exact. */
+   taken around the top-left corner; the translate re-centres the card and
+   moves its bottom edge below the front one, which keeps the layout
+   animation exact. */
 .deck[data-stacked='true'] {
-  padding-top: 16px;
+  padding-bottom: 16px;
 }
 
 .deck[data-stacked='true'] .deckCard:not([data-layer='0']) {
   position: absolute;
-  top: 16px;
+  top: 0;
   right: 0;
-  bottom: 0;
+  bottom: 16px;
   left: 0;
   overflow: hidden;
   pointer-events: none;
@@ -1290,7 +1342,7 @@
 
 .deck[data-stacked='true'] .deckCard[data-layer='1'] {
   z-index: 2;
-  transform: translate(3.35%, -8px) scale(0.933);
+  transform: translate(3.35%, calc(6.7% + 8px)) scale(0.933);
   background: var(--nk-color-deck-layer, rgba(255, 255, 255, 0.92));
   box-shadow: 0 6px 16px rgba(20, 40, 35, 0.1);
 }
@@ -1298,7 +1350,7 @@
 .deck[data-stacked='true'] .deckCard[data-layer='2'],
 .deck[data-stacked='true'] .deckCard[data-layer='3'] {
   z-index: 1;
-  transform: translate(6.65%, -16px) scale(0.867);
+  transform: translate(6.65%, calc(13.3% + 16px)) scale(0.867);
   background: var(--nk-color-deck-layer, rgba(255, 255, 255, 0.92));
   box-shadow: 0 4px 12px rgba(20, 40, 35, 0.08);
 }
@@ -1311,14 +1363,10 @@
   opacity: 0;
 }
 
-.deck[data-stacked='true'] .deckCard[data-layer='0'] .cardMain {
-  cursor: pointer;
-}
-
-/* Fanned out: a list that scrolls inside the work area. The padding keeps
+/* Fanned out: a list that scrolls within the window. The padding keeps
    the cards' shadows from being cut by the scroll box. */
 .deck[data-expanded='true'] {
-  max-height: calc(var(--nk-dock-height, 100vh) - 140px);
+  max-height: calc(100vh - var(--nk-overlay-top, 16px) - 96px);
   overflow-y: auto;
   padding: 4px 16px 24px;
   margin: -4px -16px -24px;
@@ -1338,6 +1386,7 @@
   .state,
   .deckCard,
   .deckBar,
+  .deckChip,
   .inboxToast,
   .strip,
   .badge,

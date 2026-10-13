@@ -91,7 +91,6 @@ export {
   type TabItem,
 } from './primitives';
 export { MessageBody, plainText } from './content';
-export { DEFAULT_ANCHOR_SELECTOR } from './dock';
 export {
   PREVIEW_ID,
   useKitPreview,

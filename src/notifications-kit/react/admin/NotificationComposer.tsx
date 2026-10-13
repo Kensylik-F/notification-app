@@ -18,7 +18,6 @@ import type {
 import { useNotificationsContext } from '../context';
 import { formatDateTime } from '../format';
 import { plural } from '../messages';
-import { useDockObstacle } from '../dock';
 import { useKitPreview } from '../preview';
 import { Button, StateBlock, cx } from '../primitives';
 import styles from './admin.module.css';
@@ -140,8 +139,6 @@ export function NotificationComposer({
   const fetchPreview = useFetchPreview();
   const requestFor = usePreviewRequest(state.content);
   const topRef = useRef<HTMLDivElement>(null);
-  const barRef = useRef<HTMLDivElement>(null);
-  useDockObstacle(barRef);
   useClearPreviewOnLeave();
 
   // One key per submission: kept across repeats of the same draft, renewed
@@ -472,7 +469,7 @@ export function NotificationComposer({
         )}
       </form>
 
-      <div className={styles.actionBar} ref={barRef}>
+      <div className={styles.actionBar}>
         <span className={styles.actionSummary}>
           {showErrors && !valid ? (
             <span className={styles.fieldError}>{t('compose.fixErrors')}</span>

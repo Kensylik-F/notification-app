@@ -171,7 +171,7 @@ function App() {
           <span className='avatar' aria-hidden='true' />
         </header>
         <div className='body'>
-          <div className='work' data-notifications-anchor>
+          <div className='work'>
             <nav className='nav' aria-label='Разделы'>
               {NAV.map(group => (
                 <div key={group.section}>
@@ -275,7 +275,7 @@ function App() {
           )}
         </div>
       </div>
-      <AnnouncementsHost onOpenItem={openItem} />
+      <AnnouncementsHost headerRef={headerRef} onOpenItem={openItem} />
     </NotificationsProvider>
   );
 }

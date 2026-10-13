@@ -53,7 +53,10 @@ if (run('center')) {
   await shot(page, '01-incident-modal');
   await acknowledge(page);
   await wait(page, 600);
-  await shot(page, '02-center-empty-reader');
+  await shot(page, '02-center-deck-full');
+  // Left alone, the stack shrinks to a chip in the corner.
+  await wait(page, 9000);
+  await shot(page, '02b-center-deck-chip');
   await page
     .locator('.main')
     .getByRole('button', { name: /Нужна информация по предзаказу/ })
