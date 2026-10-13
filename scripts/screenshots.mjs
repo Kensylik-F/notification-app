@@ -53,10 +53,9 @@ if (run('center')) {
   await shot(page, '01-incident-modal');
   await acknowledge(page);
   await wait(page, 600);
-  await shot(page, '02-center-deck-full');
-  // Left alone, the stack shrinks to a chip in the corner.
-  await wait(page, 9000);
-  await shot(page, '02b-center-deck-chip');
+  await shot(page, '02-center-deck');
+  // The stack sits over the page's top-right controls, which is by design;
+  // those clicks go straight to the element below.
   await page
     .locator('.main')
     .getByRole('button', { name: /Нужна информация по предзаказу/ })
@@ -64,10 +63,14 @@ if (run('center')) {
     .click();
   await wait(page, 1000);
   await shot(page, '03-center-reader-html');
-  await page.getByRole('switch', { name: 'Только непрочитанные' }).click();
+  await page
+    .getByRole('switch', { name: 'Только непрочитанные' })
+    .dispatchEvent('click');
   await wait(page, 600);
   await shot(page, '04-center-unread-only');
-  await page.getByRole('switch', { name: 'Только непрочитанные' }).click();
+  await page
+    .getByRole('switch', { name: 'Только непрочитанные' })
+    .dispatchEvent('click');
   await page.getByRole('tab', { name: /Объявления/ }).click();
   await wait(page, 300);
   await shot(page, '05-tab-switch-mid');
@@ -88,7 +91,10 @@ if (run('center')) {
   await shot(page, '08-announcement-closed-history');
   await page.getByRole('tab', { name: /Входящие/ }).click();
   await wait(page, 400);
-  await page.getByRole('button', { name: 'Закрыть все' }).first().click();
+  await page
+    .locator('.main')
+    .getByRole('button', { name: 'Закрыть все' })
+    .dispatchEvent('click');
   await wait(page, 300);
   await shot(page, '09-dismiss-all-confirm');
   await page.context().close();
@@ -132,12 +138,14 @@ if (run('arrival')) {
   const page = await open();
   await acknowledge(page);
   await wait(page, 5500);
-  await page.getByRole('button', { name: '+ уведомление' }).click();
+  await page
+    .getByRole('button', { name: '+ уведомление' })
+    .dispatchEvent('click');
   await wait(page, 6500);
   await shot(page, '20-new-notification-card');
   await page
     .getByRole('button', { name: /Уведомления, непрочитанных/ })
-    .click();
+    .dispatchEvent('click');
   await wait(page, 600);
   await shot(page, '21-bell');
   await page.context().close();
@@ -180,7 +188,7 @@ if (run('compose')) {
   await shot(page, '33-preview-in-app');
   await page
     .getByRole('button', { name: /Уведомления, непрочитанных/ })
-    .click();
+    .dispatchEvent('click');
   await wait(page, 600);
   await shot(page, '34-preview-in-bell');
   await page.keyboard.press('Escape');

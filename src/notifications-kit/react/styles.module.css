@@ -998,8 +998,8 @@
 
 /* ── overlays: the dock ───────────────────────────────────────────────── */
 
-/* Over the whole page: a column of cards in the top-right corner, under
-   the page header, and strips at the top centre. */
+/* Over everything on the page: a column of cards in the top-right corner
+   of the window, strips at the top centre. */
 .dock {
   position: fixed;
   inset: 0;
@@ -1220,53 +1220,6 @@
 
 /* the deck */
 
-.deckChip {
-  align-self: flex-end;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 12px 0 14px;
-  border: 1px solid var(--nk-color-border-soft, rgba(20, 40, 35, 0.08));
-  border-radius: 18px;
-  background: var(--nk-color-surface-raised, #ffffff);
-  box-shadow: var(
-    --nk-shadow,
-    0 12px 32px rgba(20, 40, 35, 0.16),
-    0 2px 6px rgba(20, 40, 35, 0.06)
-  );
-  color: var(--nk-color-text, #1b2321);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transform-origin: top right;
-  animation: nk-chip-in 0.36s cubic-bezier(0.2, 0.9, 0.25, 1) both;
-}
-
-.deckChip:hover {
-  background: var(--nk-color-surface-hover-raised, #f6f8f7);
-}
-
-.deckChip:focus-visible {
-  outline: 2px solid var(--nk-color-accent, #2b7a6e);
-  outline-offset: 2px;
-}
-
-.deckChipDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--nk-color-accent, #2b7a6e);
-}
-
-@keyframes nk-chip-in {
-  from {
-    opacity: 0;
-    transform: scale(0.6, 0.4);
-  }
-}
-
 .deckWrap {
   display: flex;
   flex-direction: column;
@@ -1386,7 +1339,6 @@
   .state,
   .deckCard,
   .deckBar,
-  .deckChip,
   .inboxToast,
   .strip,
   .badge,

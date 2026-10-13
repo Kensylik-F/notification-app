@@ -1,13 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, RefObject } from 'react';
+import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 
 import { notificationKeys, odata } from '../core';
 import type { AnnouncementEntry, InboxEntry } from '../core';
 import { MessageBody, hasMore, plainText } from './content';
 import { useNotificationsContext } from './context';
-import { useOverlayFrame } from './dock';
 import { formatCardTime, formatDay } from './format';
 import {
   useAnnouncements,
@@ -32,12 +31,6 @@ import {
 import styles from './styles.module.css';
 
 export interface AnnouncementsHostProps {
-  /**
-   * The page header. Cards and strips start just under it, the cards lined
-   * up with its right edge, so they cover the page but not the header.
-   * Without it they start 16 px from the top-right corner of the window.
-   */
-  headerRef?: RefObject<Element | null>;
   /** How long a strip at the top and a new-notification card stay.
    *  Default: 8000. */
   toastDurationMs?: number;
@@ -50,13 +43,6 @@ export interface AnnouncementsHostProps {
   toastOnTimeout?: 'hide-for-session' | 'dismiss';
   /** Cards in the stack. Default: 5. */
   maxCorner?: number;
-  /**
-   * After this long without the pointer or focus on it, the folded stack
-   * shrinks to a small "Announcements · N" chip, so it does not keep
-   * covering the top-right corner of the page; a new announcement brings
-   * it out again. `0` keeps it open. Default: 8000.
-   */
-  cornerIdleMs?: number;
   /** Strips on screen at once. Default: 2. */
   maxToasts?: number;
   /** Show a card when a new notification arrives. Default: `true`. */
@@ -208,24 +194,19 @@ function DeckCard({
 function CornerDeck({
   entries,
   previewId,
-  idleMs,
   onDismiss,
   onOpen,
   onClosePreview,
 }: {
   entries: AnnouncementEntry[];
   previewId: string | null;
-  idleMs: number;
   onDismiss: (id: string) => void;
   onOpen: (entry: AnnouncementEntry) => void;
   onClosePreview: () => void;
 }) {
   const { t } = useNotificationsContext();
   const [expanded, setExpanded] = useState(false);
-  const [minimized, setMinimized] = useState(false);
-  const [engaged, setEngaged] = useState(false);
-  const frontId = entries[0]?.id;
-  const count = entries.length;
+
   const deckRef = useRef<HTMLDivElement>(null);
   const flip = useFlip(deckRef);
   const { leaving, leave } = useLeaving();
@@ -252,38 +233,6 @@ function CornerDeck({
     setExpanded(next);
   };
 
-  // Something new comes out in full again.
-  useEffect(() => {
-    setMinimized(false);
-  }, [frontId, count]);
-
-  // Left alone, the folded deck shrinks to a small chip so it does not keep
-  // covering the top-right corner of the page.
-  const holding = open || engaged || previewId !== null;
-  useEffect(() => {
-    if (minimized || holding || idleMs <= 0) return;
-    const timer = window.setTimeout(() => setMinimized(true), idleMs);
-    return () => window.clearTimeout(timer);
-  }, [minimized, holding, idleMs, frontId, count]);
-
-  if (minimized) {
-    return (
-      <button
-        type='button'
-        className={styles.deckChip}
-        aria-label={t('announcement.expand', { count })}
-        onClick={() => {
-          setMinimized(false);
-          if (count > 1) toggle(true);
-        }}
-      >
-        <span className={styles.deckChipDot} aria-hidden='true' />
-        {t('announcement.header', { count })}
-        <Icon name='chevron' size={12} weight={2.4} />
-      </button>
-    );
-  }
-
   const close = (id: string, delay = 0) =>
     leave(
       id,
@@ -296,17 +245,7 @@ function CornerDeck({
     );
 
   return (
-    <div
-      className={styles.deckWrap}
-      onPointerEnter={() => setEngaged(true)}
-      onPointerLeave={() => setEngaged(false)}
-      onFocus={() => setEngaged(true)}
-      onBlur={event => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-          setEngaged(false);
-        }
-      }}
-    >
+    <div className={styles.deckWrap}>
       {open && (
         <div className={styles.deckBar}>
           <span className={styles.deckBarTitle}>
@@ -652,11 +591,9 @@ type Reading =
  * previewing. Mount it once, anywhere under the provider.
  */
 export function AnnouncementsHost({
-  headerRef,
   toastDurationMs = 8000,
   toastOnTimeout = 'hide-for-session',
   maxCorner = 5,
-  cornerIdleMs = 8000,
   maxToasts = 2,
   inboxToasts = true,
   onOpenItem,
@@ -667,7 +604,6 @@ export function AnnouncementsHost({
   const dismiss = useDismissAnnouncement();
   const { markRead } = useInboxCommands();
   const [preview, setPreview] = useKitPreview();
-  const frame = useOverlayFrame(headerRef);
   const stripsRef = useRef<HTMLDivElement>(null);
   const cornerRef = useRef<HTMLDivElement>(null);
   const [stripsOffset, setStripsOffset] = useState(0);
@@ -768,11 +704,9 @@ export function AnnouncementsHost({
     ...arrivals.map(entry => ({ entry, preview: false })),
   ];
 
-  if (typeof document === 'undefined' || !frame) return null;
+  if (typeof document === 'undefined') return null;
 
   const frameStyle = {
-    '--nk-overlay-top': `${frame.top}px`,
-    '--nk-overlay-right': `${frame.right}px`,
     '--nk-strips-offset': `${stripsOffset}px`,
   } as CSSProperties;
   const readingTitle = reading
@@ -853,7 +787,6 @@ export function AnnouncementsHost({
               <CornerDeck
                 entries={plan.corner}
                 previewId={announcementPreview ? PREVIEW_ID : null}
-                idleMs={cornerIdleMs}
                 onDismiss={dismissNow}
                 onOpen={openAnnouncement}
                 onClosePreview={() => setPreview(null)}

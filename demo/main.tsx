@@ -275,7 +275,7 @@ function App() {
           )}
         </div>
       </div>
-      <AnnouncementsHost headerRef={headerRef} onOpenItem={openItem} />
+      <AnnouncementsHost onOpenItem={openItem} />
     </NotificationsProvider>
   );
 }
