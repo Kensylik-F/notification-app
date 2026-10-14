@@ -323,6 +323,13 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     if (request.signal?.aborted) {
       throw Object.assign(new Error('aborted'), { name: 'AbortError' });
     }
+    // A record of what the kit sent, for checks in the browser console.
+    (window as unknown as { __nkRequests?: unknown[] }).__nkRequests?.push({
+      method: request.method,
+      path: request.path,
+      query: request.query,
+      body: request.body,
+    });
     const query = new Map(request.query);
     const route = `${request.method} ${request.path}`;
     const now = new Date().toISOString();

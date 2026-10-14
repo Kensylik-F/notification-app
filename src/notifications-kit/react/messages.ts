@@ -63,8 +63,6 @@ export const MESSAGES_RU = {
   'feed.error': 'Не удалось загрузить объявления',
   'feed.emptyActive': 'Сейчас объявлений нет',
   'feed.emptyDismissed': 'Закрытых объявлений нет',
-  'feed.dismissedHint':
-    'Здесь объявления, закрытые в этом браузере. Сервис хранит объявление только до конца срока показа.',
   'feed.dismissedAt': 'закрыто {date}',
   'feed.until': 'Показывается до {date}',
   'feed.expired': 'Срок показа закончился — это копия, сохранённая в браузере.',
@@ -160,8 +158,6 @@ export const MESSAGES_EN: Messages = {
   'feed.error': 'Could not load announcements',
   'feed.emptyActive': 'No announcements right now',
   'feed.emptyDismissed': 'No closed announcements',
-  'feed.dismissedHint':
-    'Announcements closed in this browser. The service keeps an announcement only until its window ends.',
   'feed.dismissedAt': 'closed {date}',
   'feed.until': 'Shown until {date}',
   'feed.expired':

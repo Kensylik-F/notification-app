@@ -163,8 +163,6 @@ export const ADMIN_MESSAGES_RU = {
   'announce.section.who': 'Кому и как показать',
   'announce.section.when': 'Когда показывать',
   'announce.category': 'Категория',
-  'announce.category.hint':
-    'От категории зависит, уйдёт ли объявление ещё и на почту (это настраивается в сервисе), и как оно покажется в кабинете.',
   'announce.category.placeholder': 'Выберите категорию',
   'announce.category.hintNoList':
     'Список категорий в настройках кабинета не задан — введите код категории из каталога сервиса.',
@@ -176,6 +174,16 @@ export const ADMIN_MESSAGES_RU = {
   'announce.role': 'Роль',
   'announce.role.placeholder': 'Выберите роль',
   'announce.role.error': 'Выберите роль',
+  'announce.view': 'Как показать',
+  'announce.view.hint':
+    'Нажмите вид — подставится категория этого класса. Или выберите категорию — подсветится её вид.',
+  'announce.view.noCategory':
+    'Для этого класса в настройках кабинета нет категории',
+  'categoryClass.TRANSACTIONAL': 'Важные · TRANSACTIONAL',
+  'categoryClass.PLATFORM': 'Платформенные · PLATFORM',
+  'categoryClass.MARKETING': 'О продукте · MARKETING',
+  'announce.start': 'Начало показа',
+  'announce.from.nowShort': 'В момент публикации',
   'announce.from': 'С',
   'announce.from.now': 'Сразу после публикации',
   'announce.from.at': 'С даты',
@@ -327,13 +335,8 @@ export const ADMIN_MESSAGES_RU = {
   'editor.paragraph': 'Абзац',
   'editor.html': 'Показать HTML',
   'announce.audience.roleNamed': 'Роль «{role}»',
-  'announce.presentation': 'Как покажется',
-  'announce.presentation.hint':
-    'Вид выбирается не здесь: его задаёт класс категории в каталоге сервиса. Важные — окном по центру, платформенные — полосой сверху, остальные — справа сверху.',
   'announce.presentation.unknown':
-    'Класс этой категории кабинету неизвестен, поэтому предпросмотр покажет её справа сверху. Вид задаёт каталог сервиса: важные — окном по центру, платформенные — полосой сверху, остальные — справа сверху.',
-  'announce.presentation.pickCategory': 'зависит от категории',
-  'announce.presentation.unknownShort': 'зависит от класса категории в сервисе',
+    'Этой категории нет в настройках кабинета, её класс неизвестен — вид не подсветится, предпросмотр покажет справа сверху. Проверьте код.',
   'announce.presentation.noneShort': 'не показывается поверх страницы',
   'announce.presentation.none':
     'Объявления этой категории в кабинете поверх страницы не показываются.',
@@ -343,7 +346,6 @@ export const ADMIN_MESSAGES_RU = {
   'presentation.corner.short': 'справа сверху',
   'presentation.modal.short': 'окном по центру',
   'presentation.toast.short': 'полосой сверху',
-  'announce.from.date': 'Дата начала',
   'announce.summary.until': 'до {date}',
 } as const;
 
@@ -511,8 +513,6 @@ export const ADMIN_MESSAGES_EN: Record<keyof typeof ADMIN_MESSAGES_RU, string> =
     'announce.section.who': 'Who sees it and how',
     'announce.section.when': 'When',
     'announce.category': 'Category',
-    'announce.category.hint':
-      'The category decides how the announcement shows and whether it is emailed.',
     'announce.category.placeholder': 'Choose a category',
     'announce.category.hintNoList':
       'No category list is set in the cabinet settings — type the category code from the service catalogue.',
@@ -524,6 +524,16 @@ export const ADMIN_MESSAGES_EN: Record<keyof typeof ADMIN_MESSAGES_RU, string> =
     'announce.role': 'Role',
     'announce.role.placeholder': 'Choose a role',
     'announce.role.error': 'Choose a role',
+    'announce.view': 'How to show',
+    'announce.view.hint':
+      'Pick a view and the category of that class is filled in. Or pick a category and its view lights up.',
+    'announce.view.noCategory':
+      'No category of this class in the cabinet settings',
+    'categoryClass.TRANSACTIONAL': 'Important · TRANSACTIONAL',
+    'categoryClass.PLATFORM': 'Platform · PLATFORM',
+    'categoryClass.MARKETING': 'Product · MARKETING',
+    'announce.start': 'Start',
+    'announce.from.nowShort': 'When published',
     'announce.from': 'From',
     'announce.from.now': 'On publishing',
     'announce.from.at': 'From a date',
@@ -676,14 +686,8 @@ export const ADMIN_MESSAGES_EN: Record<keyof typeof ADMIN_MESSAGES_RU, string> =
     'editor.paragraph': 'Paragraph',
     'editor.html': 'Show HTML',
     'announce.audience.roleNamed': 'Role “{role}”',
-    'announce.presentation': 'How it shows',
-    'announce.presentation.hint':
-      'The view is not chosen here: the category class in the service catalogue sets it. Important ones as a dialog in the middle, platform ones as a strip at the top, the rest top right.',
     'announce.presentation.unknown':
-      'This category’s class is unknown here, so the preview shows it top right. The service catalogue sets the view: important ones as a dialog in the middle, platform ones as a strip at the top, the rest top right.',
-    'announce.presentation.pickCategory': 'depends on the category',
-    'announce.presentation.unknownShort':
-      'depends on the category class in the service',
+      'This category is not in the cabinet settings, so its class is unknown: no view lights up and the preview shows it top right. Check the code.',
     'announce.presentation.noneShort': 'not shown over the page',
     'announce.presentation.none':
       'Announcements of this category are not shown over the page.',
@@ -693,6 +697,5 @@ export const ADMIN_MESSAGES_EN: Record<keyof typeof ADMIN_MESSAGES_RU, string> =
     'presentation.corner.short': 'top right',
     'presentation.modal.short': 'as a dialog in the middle',
     'presentation.toast.short': 'as a strip',
-    'announce.from.date': 'Start date',
     'announce.summary.until': 'until {date}',
   };

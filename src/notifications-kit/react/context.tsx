@@ -35,8 +35,8 @@ export interface AdminCategory {
   code: string;
   label: string;
   /** The class the service's catalogue gives the category: preselected
-   *  for a send; for an announcement category it tells the publisher how
-   *  the cabinet will show it. */
+   *  for a send; for an announcement category it ties the category to a
+   *  view in the publisher (a click on the view picks this category). */
   categoryClass?: SendCategoryClass;
   /** Configured as an announcement category in the service. */
   announcement?: boolean;
@@ -84,6 +84,13 @@ export interface AdminOptions {
    * forms offer a text editor; without it only "template by key".
    */
   freeformTemplateKey?: string;
+  /**
+   * "Own text / Service template" in the forms. The service publishes no
+   * list of its templates or their variables, so writing a template key by
+   * hand is for those who know them. Default: `false` - own text only
+   * (needs `freeformTemplateKey`).
+   */
+  serviceTemplates?: boolean;
   /** The service's `announcements.max-visibility-window`. Default: 90. */
   maxVisibilityDays?: number;
   /** Default: everything allowed, and the service decides. */
@@ -95,6 +102,7 @@ export interface ResolvedAdminOptions {
   roles: readonly AdminRole[];
   searchRecipients: AdminOptions['searchRecipients'];
   freeformTemplateKey: string | undefined;
+  serviceTemplates: boolean;
   maxVisibilityDays: number;
   permissions: NotificationPermissions;
 }
@@ -226,6 +234,7 @@ function resolveAdmin(admin: AdminOptions | undefined): ResolvedAdminOptions {
     roles: admin?.roles ?? NONE,
     searchRecipients: admin?.searchRecipients,
     freeformTemplateKey: admin?.freeformTemplateKey?.trim() || undefined,
+    serviceTemplates: admin?.serviceTemplates ?? false,
     maxVisibilityDays: admin?.maxVisibilityDays ?? DEFAULT_MAX_VISIBILITY_DAYS,
     permissions: {
       send: p.send ?? true,

@@ -401,7 +401,6 @@ function AnnouncementSide({
               ))}
             </ul>
           )}
-          <p className={styles.listNote}>{t('feed.dismissedHint')}</p>
         </div>
       )}
       {showReader && (

@@ -38,7 +38,8 @@ interface MessageFieldsProps {
 /**
  * "Own text / Service template". Mounted in the section header; remembers
  * what was typed in the other mode, so switching back loses nothing.
- * Renders nothing when the deployment has no free-form template.
+ * Renders nothing without a free-form template or with `serviceTemplates`
+ * off (the default).
  */
 export function MessageModeSwitch({
   value,
@@ -51,7 +52,7 @@ export function MessageModeSwitch({
   const other = useRef<Partial<Record<MessageContent['mode'], MessageContent>>>(
     {}
   );
-  if (!admin.freeformTemplateKey) return null;
+  if (!admin.freeformTemplateKey || !admin.serviceTemplates) return null;
   const switchMode = (mode: MessageContent['mode']) => {
     if (mode === value.mode) return;
     other.current[value.mode] = value;

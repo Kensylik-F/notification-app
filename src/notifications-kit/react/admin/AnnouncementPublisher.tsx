@@ -11,6 +11,7 @@ import {
 import type {
   AnnouncementAdmin,
   AudienceType,
+  CategoryClass,
   MessageContent,
   OperationResponse,
   PublishAnnouncementRequest,
@@ -63,6 +64,8 @@ import {
 } from './Preview';
 
 const DEFAULT_WINDOW_DAYS = 7;
+/** The views, most prominent first; each stands for a category class. */
+const CLASSES: CategoryClass[] = ['TRANSACTIONAL', 'PLATFORM', 'MARKETING'];
 const CONTENT_KEYS = ['subject', 'body', 'templateKey', 'variables'] as const;
 
 interface PublisherState {
@@ -139,6 +142,21 @@ function usePresentationOf() {
     });
   presentationOf.known = (category: string) => classOf(category) !== null;
   presentationOf.classOf = classOf;
+  /** How the cabinet shows an announcement of this class. */
+  presentationOf.ofClass = (categoryClass: CategoryClass) =>
+    resolvePresentation({
+      id: 'probe',
+      category: null,
+      categoryClass,
+      locale: null,
+      subject: null,
+      bodyText: null,
+      bodyHtml: null,
+      publishedAt: null,
+      visibleFrom: null,
+      visibleUntil: null,
+      dismissed: false,
+    });
   return presentationOf;
 }
 
@@ -310,6 +328,9 @@ function AnnouncementPublisherBody({
     setState(current => ({ ...current, ...patch }));
   const days = admin.maxVisibilityDays;
   const announcementCategories = admin.categories.filter(c => c.announcement);
+  /** The category a click on a view picks: the first of that class. */
+  const categoryOfClass = (cls: CategoryClass) =>
+    announcementCategories.find(c => c.categoryClass === cls)?.code;
   const presentation = presentationOf(state.category);
   const classKnown = presentationOf.known(state.category);
 
@@ -435,13 +456,53 @@ function AnnouncementPublisherBody({
               </Field>
             )}
           </div>
+          <FieldSet legend={t('announce.view')}>
+            <div
+              className={styles.views}
+              role='radiogroup'
+              aria-label={t('announce.view')}
+            >
+              {CLASSES.map(cls => {
+                const kind = presentationOf.ofClass(cls);
+                const category = categoryOfClass(cls);
+                const active = presentationOf.classOf(state.category) === cls;
+                return (
+                  <button
+                    key={cls}
+                    type='button'
+                    role='radio'
+                    aria-checked={active}
+                    className={styles.view}
+                    data-active={active || undefined}
+                    disabled={!category}
+                    title={category ? undefined : t('announce.view.noCategory')}
+                    onClick={() => category && update({ category })}
+                  >
+                    {kind !== 'none' && PRESENTATION_ICON[kind]}
+                    <span className={styles.viewText}>
+                      <span className={styles.viewTitle}>
+                        {kind === 'none'
+                          ? t('announce.presentation.noneShort')
+                          : t(`presentation.${kind}`)}
+                      </span>
+                      <span className={styles.viewClass}>
+                        {t(`categoryClass.${cls}`)}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </FieldSet>
           <Field
             label={t('announce.category')}
             required
             hint={
-              announcementCategories.length > 0
-                ? t('announce.category.hint')
-                : t('announce.category.hintNoList')
+              announcementCategories.length === 0
+                ? t('announce.category.hintNoList')
+                : state.category.trim() && !classKnown
+                  ? t('announce.presentation.unknown')
+                  : t('announce.view.hint')
             }
             error={visible.category ? t('announce.category.error') : undefined}
           >
@@ -459,91 +520,73 @@ function AnnouncementPublisherBody({
                 options={announcementCategories.map(c => ({
                   value: c.code,
                   label: c.label,
-                  hint: c.code,
+                  hint: c.categoryClass
+                    ? `${c.code} · ${t(`categoryClass.${c.categoryClass}`)}`
+                    : c.code,
                 }))}
                 onChange={category => update({ category })}
               />
             )}
           </Field>
-          <div className={styles.showsAs} aria-live='polite'>
-            <span className={styles.showsAsLabel}>
-              {t('announce.presentation')}
-            </span>
-            {!state.category.trim() ? (
-              <span className={styles.showsAsValue} data-unknown='true'>
-                {t('announce.presentation.pickCategory')}
-              </span>
-            ) : presentation === 'none' ? (
-              <span className={styles.showsAsValue} data-unknown='true'>
-                {t('announce.presentation.noneShort')}
-              </span>
-            ) : classKnown ? (
-              <span key={presentation} className={styles.showsAsValue}>
-                {PRESENTATION_ICON[presentation]}
-                {t(`presentation.${presentation}`)}
-              </span>
-            ) : (
-              <span className={styles.showsAsValue} data-unknown='true'>
-                {t('announce.presentation.unknownShort')}
-              </span>
-            )}
-          </div>
-          <span className={styles.fieldHint}>
-            {presentation === 'none'
-              ? t('announce.presentation.none')
-              : classKnown || !state.category.trim()
-                ? t('announce.presentation.hint')
-                : t('announce.presentation.unknown')}
-          </span>
         </FormSection>
 
         <FormSection title={t('announce.section.when')}>
+          <FieldSet legend={t('announce.start')}>
+            <Segmented
+              name='nk-from'
+              label={t('announce.start')}
+              value={state.fromNow ? 'now' : 'at'}
+              options={[
+                { value: 'now', label: t('announce.from.now') },
+                { value: 'at', label: t('announce.from.at') },
+              ]}
+              onChange={value =>
+                update({
+                  fromNow: value === 'now',
+                  visibleFrom:
+                    value === 'at' && !state.visibleFrom
+                      ? toLocalInput(new Date(Date.now() + 60 * 60_000))
+                      : state.visibleFrom,
+                })
+              }
+            />
+          </FieldSet>
           <div className={styles.grid2}>
-            <div className={styles.stack}>
-              <FieldSet legend={t('announce.from')}>
-                <Segmented
-                  name='nk-from'
-                  label={t('announce.from')}
-                  value={state.fromNow ? 'now' : 'at'}
-                  options={[
-                    { value: 'now', label: t('announce.from.now') },
-                    { value: 'at', label: t('announce.from.at') },
-                  ]}
-                  onChange={value =>
-                    update({
-                      fromNow: value === 'now',
-                      visibleFrom:
-                        value === 'at' && !state.visibleFrom
-                          ? toLocalInput(new Date(Date.now() + 60 * 60_000))
-                          : state.visibleFrom,
-                    })
-                  }
-                />
-              </FieldSet>
-              {!state.fromNow && (
-                <Field
-                  label={t('announce.from.date')}
-                  required
-                  error={
-                    visible.visibleFrom ? t('announce.from.error') : undefined
-                  }
-                >
-                  {({ id, describedBy, invalid }) => (
-                    <TextInput
-                      id={id}
-                      type='datetime-local'
-                      className={styles.dateInput}
-                      aria-describedby={describedBy}
-                      invalid={invalid}
-                      value={state.visibleFrom}
-                      onChange={event =>
-                        update({ visibleFrom: event.target.value })
-                      }
-                    />
-                  )}
-                </Field>
-              )}
-            </div>
+            <Field
+              label={t('announce.from')}
+              required={!state.fromNow}
+              error={
+                !state.fromNow && visible.visibleFrom
+                  ? t('announce.from.error')
+                  : undefined
+              }
+            >
+              {({ id, describedBy, invalid }) =>
+                state.fromNow ? (
+                  <TextInput
+                    id={id}
+                    className={styles.dateInput}
+                    aria-describedby={describedBy}
+                    value=''
+                    placeholder={t('announce.from.nowShort')}
+                    disabled
+                    readOnly
+                  />
+                ) : (
+                  <TextInput
+                    id={id}
+                    type='datetime-local'
+                    className={styles.dateInput}
+                    aria-describedby={describedBy}
+                    invalid={invalid}
+                    value={state.visibleFrom}
+                    onChange={event =>
+                      update({ visibleFrom: event.target.value })
+                    }
+                  />
+                )
+              }
+            </Field>
             <Field
               label={t('announce.until')}
               required
