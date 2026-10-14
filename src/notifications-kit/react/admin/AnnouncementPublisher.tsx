@@ -64,11 +64,6 @@ import {
 
 const DEFAULT_WINDOW_DAYS = 7;
 const CONTENT_KEYS = ['subject', 'body', 'templateKey', 'variables'] as const;
-const SHOWN: Exclude<AnnouncementPresentation, 'none'>[] = [
-  'corner',
-  'modal',
-  'toast',
-];
 
 interface PublisherState {
   category: string;
@@ -211,7 +206,7 @@ const PRESENTATION_ICON: Record<
       aria-hidden='true'
     >
       <rect x='.5' y='.5' width='27' height='19' rx='3' stroke='currentColor' />
-      <rect x='15' y='11' width='10' height='6' rx='1.5' fill='currentColor' />
+      <rect x='15' y='3' width='10' height='6' rx='1.5' fill='currentColor' />
     </svg>
   ),
   modal: (
@@ -443,7 +438,11 @@ function AnnouncementPublisherBody({
           <Field
             label={t('announce.category')}
             required
-            hint={t('announce.category.hint')}
+            hint={
+              announcementCategories.length > 0
+                ? t('announce.category.hint')
+                : t('announce.category.hintNoList')
+            }
             error={visible.category ? t('announce.category.error') : undefined}
           >
             {({ id, describedBy, invalid }) => (
@@ -452,7 +451,11 @@ function AnnouncementPublisherBody({
                 describedBy={describedBy}
                 invalid={invalid}
                 value={state.category}
-                placeholder={t('compose.category.placeholder')}
+                placeholder={
+                  announcementCategories.length > 0
+                    ? t('announce.category.placeholder')
+                    : t('compose.category.placeholder')
+                }
                 options={announcementCategories.map(c => ({
                   value: c.code,
                   label: c.label,
@@ -462,29 +465,33 @@ function AnnouncementPublisherBody({
               />
             )}
           </Field>
-          <div
-            className={styles.presentations}
-            role='group'
-            aria-label={t('announce.presentation')}
-          >
-            {SHOWN.map(kind => (
-              <div
-                key={kind}
-                className={styles.presentation}
-                data-active={(classKnown && presentation === kind) || undefined}
-                aria-current={
-                  classKnown && presentation === kind ? 'true' : undefined
-                }
-              >
-                {PRESENTATION_ICON[kind]}
-                {t(`presentation.${kind}`)}
-              </div>
-            ))}
+          <div className={styles.showsAs} aria-live='polite'>
+            <span className={styles.showsAsLabel}>
+              {t('announce.presentation')}
+            </span>
+            {!state.category.trim() ? (
+              <span className={styles.showsAsValue} data-unknown='true'>
+                {t('announce.presentation.pickCategory')}
+              </span>
+            ) : presentation === 'none' ? (
+              <span className={styles.showsAsValue} data-unknown='true'>
+                {t('announce.presentation.noneShort')}
+              </span>
+            ) : classKnown ? (
+              <span key={presentation} className={styles.showsAsValue}>
+                {PRESENTATION_ICON[presentation]}
+                {t(`presentation.${presentation}`)}
+              </span>
+            ) : (
+              <span className={styles.showsAsValue} data-unknown='true'>
+                {t('announce.presentation.unknownShort')}
+              </span>
+            )}
           </div>
           <span className={styles.fieldHint}>
             {presentation === 'none'
               ? t('announce.presentation.none')
-              : classKnown
+              : classKnown || !state.category.trim()
                 ? t('announce.presentation.hint')
                 : t('announce.presentation.unknown')}
           </span>
@@ -584,7 +591,7 @@ function AnnouncementPublisherBody({
           ) : (
             [
               audienceText,
-              presentation !== 'none'
+              classKnown && presentation !== 'none'
                 ? t(`presentation.${presentation}.short`)
                 : null,
               until ? t('announce.summary.until', { date: until }) : null,

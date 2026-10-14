@@ -166,6 +166,8 @@ export const ADMIN_MESSAGES_RU = {
   'announce.category.hint':
     'От категории зависит, уйдёт ли объявление ещё и на почту (это настраивается в сервисе), и как оно покажется в кабинете.',
   'announce.category.placeholder': 'Выберите категорию',
+  'announce.category.hintNoList':
+    'Список категорий в настройках кабинета не задан — введите код категории из каталога сервиса.',
   'announce.category.custom': 'Другая категория…',
   'announce.category.customCode': 'Код категории',
   'announce.category.error': 'Выберите категорию',
@@ -327,16 +329,19 @@ export const ADMIN_MESSAGES_RU = {
   'announce.audience.roleNamed': 'Роль «{role}»',
   'announce.presentation': 'Как покажется',
   'announce.presentation.hint':
-    'Вид подсвечивается сам по классу категории — так её показывает кабинет.',
+    'Вид выбирается не здесь: его задаёт класс категории в каталоге сервиса. Важные — окном по центру, платформенные — полосой сверху, остальные — справа сверху.',
   'announce.presentation.unknown':
-    'Вид задаёт класс категории в каталоге сервиса: важные — окном, сервисные — полосой сверху, остальные — в углу. Класс этой категории кабинету неизвестен, предпросмотр покажет её в углу.',
+    'Класс этой категории кабинету неизвестен, поэтому предпросмотр покажет её справа сверху. Вид задаёт каталог сервиса: важные — окном по центру, платформенные — полосой сверху, остальные — справа сверху.',
+  'announce.presentation.pickCategory': 'зависит от категории',
+  'announce.presentation.unknownShort': 'зависит от класса категории в сервисе',
+  'announce.presentation.noneShort': 'не показывается поверх страницы',
   'announce.presentation.none':
     'Объявления этой категории в кабинете поверх страницы не показываются.',
-  'presentation.corner': 'В углу, стопкой',
-  'presentation.modal': 'Окном',
+  'presentation.corner': 'Справа сверху',
+  'presentation.modal': 'Окном по центру',
   'presentation.toast': 'Полосой сверху',
-  'presentation.corner.short': 'в углу',
-  'presentation.modal.short': 'окном',
+  'presentation.corner.short': 'справа сверху',
+  'presentation.modal.short': 'окном по центру',
   'presentation.toast.short': 'полосой сверху',
   'announce.from.date': 'Дата начала',
   'announce.summary.until': 'до {date}',
@@ -509,6 +514,8 @@ export const ADMIN_MESSAGES_EN: Record<keyof typeof ADMIN_MESSAGES_RU, string> =
     'announce.category.hint':
       'The category decides how the announcement shows and whether it is emailed.',
     'announce.category.placeholder': 'Choose a category',
+    'announce.category.hintNoList':
+      'No category list is set in the cabinet settings — type the category code from the service catalogue.',
     'announce.category.custom': 'Another category…',
     'announce.category.customCode': 'Category code',
     'announce.category.error': 'Choose a category',
@@ -671,16 +678,20 @@ export const ADMIN_MESSAGES_EN: Record<keyof typeof ADMIN_MESSAGES_RU, string> =
     'announce.audience.roleNamed': 'Role “{role}”',
     'announce.presentation': 'How it shows',
     'announce.presentation.hint':
-      'Highlighted from the category class — this is how the cabinet shows it.',
+      'The view is not chosen here: the category class in the service catalogue sets it. Important ones as a dialog in the middle, platform ones as a strip at the top, the rest top right.',
     'announce.presentation.unknown':
-      'The category class in the service catalogue decides: important ones as a dialog, platform ones as a strip at the top, the rest in the corner. This category’s class is unknown here, so the preview shows it in the corner.',
+      'This category’s class is unknown here, so the preview shows it top right. The service catalogue sets the view: important ones as a dialog in the middle, platform ones as a strip at the top, the rest top right.',
+    'announce.presentation.pickCategory': 'depends on the category',
+    'announce.presentation.unknownShort':
+      'depends on the category class in the service',
+    'announce.presentation.noneShort': 'not shown over the page',
     'announce.presentation.none':
       'Announcements of this category are not shown over the page.',
-    'presentation.corner': 'In the corner, stacked',
-    'presentation.modal': 'As a dialog',
+    'presentation.corner': 'Top right',
+    'presentation.modal': 'As a dialog in the middle',
     'presentation.toast': 'As a strip at the top',
-    'presentation.corner.short': 'in the corner',
-    'presentation.modal.short': 'as a dialog',
+    'presentation.corner.short': 'top right',
+    'presentation.modal.short': 'as a dialog in the middle',
     'presentation.toast.short': 'as a strip',
     'announce.from.date': 'Start date',
     'announce.summary.until': 'until {date}',

@@ -44,8 +44,11 @@ const HOST_DEFAULTS: NotificationsFeatures = {
   publishing: true,
 };
 const initialParams = new URLSearchParams(window.location.search);
-const FEATURES: Partial<NotificationsFeatures> =
-  initialParams.get('flags') === 'all' ? {} : HOST_DEFAULTS;
+const FEATURES: Partial<NotificationsFeatures> = {
+  ...(initialParams.get('flags') === 'all' ? {} : HOST_DEFAULTS),
+  // `?banners=0`: nothing over the page (for screenshots of the forms).
+  ...(initialParams.get('banners') === '0' ? { banners: false } : {}),
+};
 
 const LABELS: Record<string, string> = {
   preorder: 'Предзаказы',
@@ -145,7 +148,13 @@ function App() {
   const headerRef = useRef<HTMLElement>(null);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
 
-  const admin = useMemo(() => ADMIN, []);
+  // `?cats=none`: the host has no category list (only codes typed in).
+  const admin = useMemo(
+    () =>
+      params.get('cats') === 'none' ? { ...ADMIN, categories: [] } : ADMIN,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
   const go = (next: View) => {
     setPage(null);
     setView(next);

@@ -547,38 +547,6 @@
 
 /* announcement: how it will show */
 
-.presentations {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.presentation {
-  flex: 1 1 140px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--nk-color-border-strong, #d5dbda);
-  border-radius: 12px;
-  background: var(--nk-color-surface-raised, #ffffff);
-  font-size: 13px;
-  color: var(--nk-color-text-muted, #5f6a68);
-  transition:
-    border-color 0.2s ease,
-    background-color 0.2s ease,
-    box-shadow 0.2s ease,
-    color 0.2s ease;
-}
-
-.presentation[data-active='true'] {
-  border-color: var(--nk-color-accent, #2b7a6e);
-  background: var(--nk-color-accent-faint, #f1f8f6);
-  box-shadow: inset 0 0 0 1px var(--nk-color-accent, #2b7a6e);
-  color: var(--nk-color-text, #1b2321);
-  font-weight: 600;
-}
-
 /* ── recipients ───────────────────────────────────────────────────────── */
 
 .recipientBox {
@@ -1883,6 +1851,71 @@
 
 .input[data-labelled='true'] {
   padding-right: 45%;
+}
+
+.input[data-chevron='true'] {
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+.input[data-chevron='true'][data-labelled='true'] {
+  padding-right: calc(45% + 24px);
+}
+
+.comboLabel[data-with-chevron='true'] {
+  right: 36px;
+}
+
+.comboChevron {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  display: inline-flex;
+  color: var(--nk-color-text-muted, #5f6a68);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* How the announcement will show: decided by the category's class in the
+   service catalogue, so an indicator, not a choice. */
+.showsAs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+}
+
+.showsAsLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nk-color-text-label, #3a4442);
+}
+
+.showsAsValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 999px;
+  background: var(--nk-color-accent-faint, #f1f8f6);
+  color: var(--nk-color-accent-text, #236b60);
+  font-size: 13px;
+  font-weight: 600;
+  animation: nk-admin-pop 0.25s ease both;
+}
+
+.showsAsValue[data-unknown='true'] {
+  background: var(--nk-color-chip, rgba(20, 40, 35, 0.06));
+  color: var(--nk-color-text-muted, #5f6a68);
+  font-weight: 500;
+}
+
+@keyframes nk-admin-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
 }
 
 .log,

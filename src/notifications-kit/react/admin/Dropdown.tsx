@@ -288,13 +288,24 @@ export function Combobox({
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
+        onClick={() => setOpen(true)}
+        data-chevron={options.length > 0 || undefined}
         onBlur={() => setOpen(false)}
         onKeyDown={onKeyDown}
         data-labelled={known ? true : undefined}
       />
       {known && (
-        <span className={styles.comboLabel} aria-hidden='true'>
+        <span
+          className={styles.comboLabel}
+          data-with-chevron={options.length > 0 || undefined}
+          aria-hidden='true'
+        >
           {known.label}
+        </span>
+      )}
+      {options.length > 0 && (
+        <span className={styles.comboChevron} aria-hidden='true'>
+          <Icon name='chevron' small />
         </span>
       )}
       {shown && (
