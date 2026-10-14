@@ -45,6 +45,9 @@ export interface AnnouncementsHostProps {
   gapMs?: number;
   /** Cards in the deck. Default: no limit. */
   maxCorner?: number;
+  /** "2 of 3" on a dialog and a strip while their queue holds more than
+   *  one. Default: `false`. */
+  showPosition?: boolean;
   /** Show a card when a new notification arrives. Default: `true`. */
   inboxToasts?: boolean;
   /** "Open" on a new-notification card. Without it the card opens the
@@ -446,8 +449,8 @@ function InboxToast({
 // ---------------------------------------------------------------- dialogs
 
 /**
- * A blocking announcement in the middle of the window, over a blurred page:
- * the only way out is the acknowledgement.
+ * A blocking announcement in the middle of the window, over a slightly
+ * blurred page: the only way out is the acknowledgement.
  */
 function AnnouncementModal({
   entry,
@@ -468,7 +471,6 @@ function AnnouncementModal({
   const now = Date.now();
   const time = formatCardTime(entry.publishedAt, now, locale);
   const until = formatDay(entry.visibleUntil, now, locale);
-  const important = isImportant(entry);
 
   return (
     <Dialog
@@ -478,31 +480,21 @@ function AnnouncementModal({
       width={520}
       backdrop='blur'
       initialFocus={buttonRef}
-      className={cx(styles.notice, important && styles.noticeImportant)}
+      className={styles.notice}
     >
-      <div className={styles.noticeTop}>
-        <span className={styles.noticeIcon} aria-hidden='true'>
-          <Icon
-            name={important ? 'alert' : 'megaphone'}
-            size={22}
-            weight={1.9}
-          />
-        </span>
-        <span className={styles.noticeKind}>
-          {important
-            ? t('announcement.important')
-            : t('announcement.kind.PLATFORM')}
-        </span>
-        {preview && <Chip tone='preview'>{t('preview.chip')}</Chip>}
-        {position && (
-          <span className={styles.position}>
-            {t('announcement.position', {
-              index: position.index,
-              total: position.total,
-            })}
-          </span>
-        )}
-      </div>
+      {(preview || position) && (
+        <div className={styles.noticeTop}>
+          {preview && <Chip tone='preview'>{t('preview.chip')}</Chip>}
+          {position && (
+            <span className={styles.position}>
+              {t('announcement.position', {
+                index: position.index,
+                total: position.total,
+              })}
+            </span>
+          )}
+        </div>
+      )}
       <h2 id={titleId} className={styles.noticeTitle}>
         {title}
       </h2>
@@ -675,6 +667,7 @@ export function AnnouncementsHost({
   firstDelayMs = 1500,
   gapMs = 800,
   maxCorner = Infinity,
+  showPosition = false,
   inboxToasts = true,
   onOpenItem,
   onOpenAnnouncement,
@@ -897,7 +890,7 @@ export function AnnouncementsHost({
               entry={shownStripEntry}
               preview={shownStripEntry.id === PREVIEW_ID}
               position={
-                shownStripEntry.id === PREVIEW_ID
+                shownStripEntry.id === PREVIEW_ID || !showPosition
                   ? null
                   : positionOf(closedStrips, queue.toast.length)
               }
@@ -954,7 +947,7 @@ export function AnnouncementsHost({
           entry={shownModal}
           preview={shownModal.id === PREVIEW_ID}
           position={
-            shownModal.id === PREVIEW_ID
+            shownModal.id === PREVIEW_ID || !showPosition
               ? null
               : positionOf(closedModals, queue.modal.length)
           }

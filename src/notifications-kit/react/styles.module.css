@@ -541,8 +541,8 @@
 /* The page behind an important dialog: dimmed and out of focus. */
 .scrim[data-backdrop='blur'] {
   background: var(--nk-color-scrim-blur, rgba(20, 28, 26, 0.38));
-  backdrop-filter: blur(10px) saturate(1.1);
-  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  backdrop-filter: blur(var(--nk-backdrop-blur, 3px));
+  -webkit-backdrop-filter: blur(var(--nk-backdrop-blur, 3px));
 }
 
 .dialog {
@@ -1349,8 +1349,8 @@
     var(--nk-color-band, rgba(20, 28, 26, 0.16)),
     transparent
   );
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(var(--nk-band-blur, 2px));
+  -webkit-backdrop-filter: blur(var(--nk-band-blur, 2px));
   mask-image: linear-gradient(to bottom, #000 55%, transparent);
   -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
   transition: height 0.3s cubic-bezier(0.2, 0.9, 0.25, 1);
@@ -1376,58 +1376,11 @@
   animation: nk-notice-out 0.2s ease-in both;
 }
 
-/* A coloured edge along the top. */
-.notice::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: 4px;
-  background: var(--nk-color-accent, #2b7a6e);
-}
-
-.noticeImportant::before {
-  background: var(--nk-color-danger, #b3402a);
-}
-
 .noticeTop {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
-}
-
-.noticeIcon {
-  --nk-pulse-color: var(--nk-color-accent-ring, rgba(43, 122, 110, 0.3));
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--nk-color-accent-soft, #e0eeea);
-  color: var(--nk-color-accent-text, #236b60);
-  animation: nk-pulse 1.4s ease-out 0.45s 2;
-}
-
-.noticeImportant .noticeIcon {
-  --nk-pulse-color: rgba(179, 64, 42, 0.28);
-  background: var(--nk-color-danger-soft, #fbe9e3);
-  color: var(--nk-color-danger, #b3402a);
-}
-
-.noticeKind {
-  flex: 1 1 auto;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--nk-color-accent-text, #236b60);
-}
-
-.noticeImportant .noticeKind {
-  color: var(--nk-color-danger-text, #8c3a22);
 }
 
 .noticeTitle {
@@ -1586,7 +1539,6 @@
   .stripIcon,
   .band,
   .notice,
-  .noticeIcon,
   .badge,
   .readerEnter,
   .listPane {

@@ -328,15 +328,15 @@ if (run('narrow')) {
 if (run('queue')) {
   const page = await open('?flags=host');
   await wait(page, 700);
-  await shot(page, '80-queue-modal-1of2');
+  await shot(page, '80-queue-modal-first');
   await page.getByRole('button', { name: 'Понятно' }).click();
   await wait(page, 120);
   await shot(page, '81-queue-modal-leaving');
   await wait(page, 1300);
-  await shot(page, '82-queue-modal-2of2');
+  await shot(page, '82-queue-modal-second');
   await page.getByRole('button', { name: 'Понятно' }).click();
   await wait(page, 1500);
-  await shot(page, '83-queue-strip-1of2');
+  await shot(page, '83-queue-strip-first');
   await page
     .getByRole('button', { name: 'Закрыть объявление' })
     .first()
@@ -344,7 +344,7 @@ if (run('queue')) {
   await wait(page, 150);
   await shot(page, '84-queue-strip-leaving');
   await wait(page, 1400);
-  await shot(page, '85-queue-strip-2of2');
+  await shot(page, '85-queue-strip-second');
   await page
     .getByRole('button', { name: 'Закрыть объявление' })
     .first()
