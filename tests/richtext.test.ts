@@ -5,7 +5,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  cleanForDisplay,
   htmlToText,
+  linkTarget,
   sanitizeHtml,
 } from '../src/notifications-kit/react/admin/richtext';
 
@@ -59,5 +61,48 @@ describe('htmlToText', () => {
         '1. Сохраните\n2. Выйдите\n\nПодробнее: страница (https://sber.ru/x)\n\n' +
         'Пишите на help@sber.ru'
     );
+  });
+});
+
+describe('edge cases', () => {
+  it('keeps tables', () => {
+    const table = sanitizeHtml(
+      '<table border="1"><tr><th>Этап</th><th>Дата</th></tr><tr><td>Прод</td><td>28.10</td></tr></table>'
+    );
+    expect(table).toMatch(/^<table>/);
+    expect(table).toContain('<th>Этап</th><th>Дата</th>');
+    expect(table).toContain('<td>Прод</td><td>28.10</td>');
+    expect(
+      htmlToText(
+        '<p>Сроки</p><table><tr><th>Этап</th><th>Дата</th></tr><tr><td>Прод</td><td>28.10</td></tr></table>'
+      )
+    ).toBe('Сроки\n\nЭтап | Дата\nПрод | 28.10');
+  });
+
+  it('turns a cabinet path into a full address and refuses others', () => {
+    expect(linkTarget('/preorders/new?x=1', 'https://onecheck.ru')).toBe(
+      'https://onecheck.ru/preorders/new?x=1'
+    );
+    expect(linkTarget('//evil.example/x', 'https://onecheck.ru')).toBeNull();
+    expect(linkTarget('javascript:alert(1)', 'https://onecheck.ru')).toBeNull();
+    expect(linkTarget('https://wiki.ru/a')).toBe('https://wiki.ru/a');
+  });
+
+  it('never leaves a block inside inline markup', () => {
+    const out = sanitizeHtml(
+      '<p><strong>Открыт<p>Второй абзац</p><b><i>смесь</b></i>'
+    );
+    expect(out).not.toMatch(/<(strong|em)>(?:(?!<\/\1>).)*<p>/);
+    expect(out).not.toMatch(/<p>(?:(?!<\/p>).)*<p>/);
+  });
+
+  it('drops scripts, styles, frames and forms from shown HTML', () => {
+    const out = cleanForDisplay(
+      '<style>body{display:none}</style><p onclick="x()" style="color:red">Текст</p>' +
+        '<script>alert(1)</script>' +
+        '<input><button>Войти</button>' +
+        '<a href="javascript:alert(1)">a</a><b onmouseover="z()">b</b>'
+    );
+    expect(out).toBe('<p style="color:red">Текст</p><a>a</a><b>b</b>');
   });
 });

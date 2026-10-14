@@ -498,7 +498,16 @@ function AnnouncementModal({
       <h2 id={titleId} className={styles.noticeTitle}>
         {title}
       </h2>
-      <MessageBody source={entry} title={title} className={styles.noticeBody} />
+      <MessageBody
+        source={entry}
+        title={title}
+        className={styles.noticeBody}
+        onFollow={() => {
+          // Following a link in it counts as reading it.
+          setOpen(false);
+          window.setTimeout(onAcknowledge, 200);
+        }}
+      />
       <div className={styles.noticeFoot}>
         <span className={styles.noticeMeta}>
           {[time, until && t('feed.until', { date: until })]
@@ -560,6 +569,7 @@ function ReaderDialog({
           source={source}
           title={title}
           className={styles.dialogBody}
+          onFollow={onClose}
         />
       )}
       <div className={styles.dialogActions}>

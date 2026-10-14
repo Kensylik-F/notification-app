@@ -15,6 +15,12 @@ const BLOCKS = new Set([
   'pre',
   'hr',
   'br',
+  'table',
+  'thead',
+  'tbody',
+  'tr',
+  'th',
+  'td',
 ]);
 const INLINE = new Set(['strong', 'em', 'u', 's', 'code', 'a']);
 /** Tags whose content is kept but the tag itself is renamed. */
@@ -55,6 +61,29 @@ const DROP = new Set([
 ]);
 
 const SAFE_HREF = /^(https?:|mailto:)/i;
+/** A path inside the cabinet: `/preorders/new`, not `//elsewhere`. */
+const APP_PATH = /^\/(?!\/)/;
+
+/**
+ * The address a link keeps. A path inside the cabinet becomes a full
+ * address on the cabinet's origin, so it also works in an email or a chat;
+ * in the cabinet itself the kit opens it in place (see `navigate`).
+ */
+export function linkTarget(href: string, origin?: string): string | null {
+  const value = href.trim();
+  if (SAFE_HREF.test(value)) return value;
+  if (APP_PATH.test(value)) {
+    const base =
+      origin ?? (typeof window === 'undefined' ? '' : window.location.origin);
+    if (!base) return null;
+    try {
+      return new URL(value, base).href;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
 
 /** Blocks that cannot sit inside a paragraph. */
 const NOT_IN_PARAGRAPH = new Set([
@@ -93,6 +122,12 @@ function cleanChildren(source: Node, target: Node, doc: Document) {
     const element = child as Element;
     let tag = element.tagName.toLowerCase();
     if (DROP.has(tag)) return;
+    // Inline markup around blocks (what a browser makes of a <b> left open
+    // across paragraphs) is unwrapped: <strong><p> is invalid markup.
+    if (INLINE.has(RENAME[tag] ?? tag) && hasBlockChild(element)) {
+      cleanChildren(element, target, doc);
+      return;
+    }
     // A wrapper holding blocks (an editor's <div> around a list) is
     // dissolved: a list or heading inside a paragraph is invalid markup.
     if ((tag === 'div' || tag === 'p') && hasBlockChild(element)) {
@@ -107,8 +142,8 @@ function cleanChildren(source: Node, target: Node, doc: Document) {
     }
     const clean = doc.createElement(tag);
     if (tag === 'a') {
-      const href = element.getAttribute('href')?.trim() ?? '';
-      if (!SAFE_HREF.test(href)) {
+      const href = linkTarget(element.getAttribute('href') ?? '');
+      if (!href) {
         cleanChildren(element, target, doc);
         return;
       }
@@ -175,6 +210,31 @@ export function sanitizeHtml(html: string): string {
     }
     loose.appendChild(node.cloneNode(true));
   });
+  // A paragraph cannot hold blocks; where unwrapped markup left one inside
+  // another, split it: runs of text become paragraphs, blocks stay blocks.
+  Array.from(out.querySelectorAll('p'))
+    .reverse()
+    .forEach(paragraph => {
+      if (!hasBlockChild(paragraph)) return;
+      const parts: Node[] = [];
+      let run: HTMLElement | null = null;
+      Array.from(paragraph.childNodes).forEach(child => {
+        const isBlock =
+          child.nodeType === Node.ELEMENT_NODE &&
+          NOT_IN_PARAGRAPH.has((child as Element).tagName.toLowerCase());
+        if (isBlock) {
+          run = null;
+          parts.push(child);
+          return;
+        }
+        if (!run) {
+          run = doc.createElement('p');
+          parts.push(run);
+        }
+        run.appendChild(child);
+      });
+      paragraph.replaceWith(...parts);
+    });
   // Empty lines left by the editor (`<p><br></p>`): paragraphs already
   // have their own spacing, and an all-empty body must read as empty.
   out.querySelectorAll('p, h2, h3, li, blockquote').forEach(block => {
@@ -193,10 +253,13 @@ export function htmlToText(html: string): string {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const lines: string[] = [];
   let current = '';
+  // Indent of a nested list item, kept apart so trimming does not eat it.
+  let indentNext = '';
   const flush = () => {
     const line = current.replace(/[ \t]+/g, ' ').trim();
-    if (line) lines.push(line);
+    if (line) lines.push(`${indentNext}${line}`);
     current = '';
+    indentNext = '';
   };
   const walk = (node: Node, listDepth: number, ordered: number[] | null) => {
     node.childNodes.forEach(child => {
@@ -228,7 +291,8 @@ export function htmlToText(html: string): string {
         flush();
         const indent = '  '.repeat(Math.max(0, listDepth - 1));
         if (ordered) ordered[0] = (ordered[0] ?? 0) + 1;
-        current = `${indent}${ordered ? `${ordered[0]}.` : '•'} `;
+        indentNext = indent;
+        current = `${ordered ? `${ordered[0]}.` : '•'} `;
         walk(el, listDepth, null);
         flush();
         return;
@@ -239,6 +303,20 @@ export function htmlToText(html: string): string {
         const text = current.slice(before).trim();
         const target = (el.getAttribute('href') ?? '').replace(/^mailto:/i, '');
         if (target && target !== text) current += ` (${target})`;
+        return;
+      }
+      if (tag === 'tr') {
+        flush();
+        const cells = Array.from(el.children).map(cell =>
+          (cell.textContent ?? '').replace(/\s+/g, ' ').trim()
+        );
+        lines.push(cells.join(' | '));
+        return;
+      }
+      if (tag === 'table') {
+        flush();
+        walk(el, listDepth, ordered);
+        lines.push('');
         return;
       }
       const block = /^(p|h2|h3|blockquote|pre|div)$/.test(tag);
@@ -256,4 +334,57 @@ export function htmlToText(html: string): string {
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+/** Removed from HTML the service returns before it is shown. */
+const DISPLAY_DROP = new Set([
+  'script',
+  'style',
+  'iframe',
+  'frame',
+  'frameset',
+  'object',
+  'embed',
+  'form',
+  'input',
+  'button',
+  'select',
+  'textarea',
+  'link',
+  'meta',
+  'base',
+  'template',
+  'noscript',
+]);
+const UNSAFE_URL = /^\s*(javascript|vbscript|data):/i;
+
+/**
+ * HTML from the service, made safe and stable to show. Whatever wrote it
+ * (the editor, another template, another service), this drops scripts,
+ * styles, frames and forms, event attributes and script URLs; ordinary
+ * markup, tables, images and inline styles stay. It is shown in a frame
+ * without scripts as well - this keeps what it shows predictable.
+ */
+export function cleanForDisplay(html: string): string {
+  if (typeof DOMParser === 'undefined') return html;
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.body.querySelectorAll('*').forEach(element => {
+    // Inside something already removed.
+    if (!doc.body.contains(element)) return;
+    if (DISPLAY_DROP.has(element.tagName.toLowerCase())) {
+      element.remove();
+      return;
+    }
+    Array.from(element.attributes).forEach(attribute => {
+      const name = attribute.name.toLowerCase();
+      if (name.startsWith('on')) element.removeAttribute(attribute.name);
+      else if (
+        (name === 'href' || name === 'src' || name === 'action') &&
+        UNSAFE_URL.test(attribute.value)
+      ) {
+        element.removeAttribute(attribute.name);
+      }
+    });
+  });
+  return doc.body.innerHTML;
 }

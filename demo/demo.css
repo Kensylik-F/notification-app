@@ -325,3 +325,14 @@ body {
     display: none;
   }
 }
+
+.demoRoute {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--nk-color-accent-faint, #f1f8f6);
+  font-size: 13px;
+}

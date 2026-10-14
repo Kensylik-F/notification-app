@@ -7,6 +7,11 @@ import type {
   NotificationsTransport,
   TransportResponse,
 } from '../src/notifications-kit';
+import {
+  htmlToText,
+  sanitizeHtml,
+} from '../src/notifications-kit/react/admin/richtext';
+import { HTML_SAMPLES } from './html-samples';
 import { ANNOUNCEMENT_CLASS, createAdminMock } from './mock-admin';
 
 interface StoredItem {
@@ -237,6 +242,40 @@ export function createMockService(options: { latencyMs?: number } = {}) {
       dismissed: false,
     },
   ];
+
+  // `?samples=html`: the HTML checks instead of the usual announcements.
+  const sampleParams =
+    typeof window === 'undefined'
+      ? null
+      : new URLSearchParams(window.location.search);
+  // `&clean=1`: as if written in the editor - cleaned, with the text twin.
+  const asEdited = sampleParams?.get('clean') === '1';
+  if (sampleParams?.get('samples') === 'html') {
+    announcements.splice(
+      0,
+      announcements.length,
+      ...HTML_SAMPLES.map((sample, index) => ({
+        id: uuid(950 + index),
+        category: 'platform-release',
+        categoryClass: 'MARKETING' as const,
+        locale: 'ru',
+        subject: sample.subject,
+        bodyText: asEdited
+          ? sample.bodyHtml
+            ? htmlToText(sanitizeHtml(sample.bodyHtml))
+            : (sample.bodyText ?? '')
+          : (sample.bodyText ?? ''),
+        bodyHtml:
+          asEdited && sample.bodyHtml
+            ? sanitizeHtml(sample.bodyHtml)
+            : sample.bodyHtml,
+        publishedAt: ago(10 + index),
+        visibleFrom: ago(10 + index),
+        visibleUntil: ahead(5),
+        dismissed: false,
+      }))
+    );
+  }
 
   const admin = createAdminMock({
     publish: a =>

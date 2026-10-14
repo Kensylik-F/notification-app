@@ -11,7 +11,7 @@ import type { ClipboardEvent, ReactNode } from 'react';
 import { useNotificationsContext } from '../context';
 import { Button, Icon, cx } from '../primitives';
 import styles from './admin.module.css';
-import { sanitizeHtml } from './richtext';
+import { linkTarget, sanitizeHtml } from './richtext';
 
 type Command =
   | 'bold'
@@ -204,14 +204,16 @@ export function RichTextEditor({
   const applyLink = () => {
     const url = linkUrl.trim();
     restoreSelection();
-    if (/^(https?:\/\/|mailto:)\S+/i.test(url)) {
+    // A full address, mail, or a path inside the cabinet (`/preorders/new`).
+    const href = /\s/.test(url) ? null : linkTarget(url);
+    if (href) {
       const selection = document.getSelection();
       if (selection && selection.isCollapsed) {
         run(
           'insertHTML',
-          `<a href="${url.replace(/"/g, '&quot;')}">${url.replace(/</g, '&lt;')}</a>`
+          `<a href="${href.replace(/"/g, '&quot;')}">${url.replace(/</g, '&lt;')}</a>`
         );
-      } else run('createLink', url);
+      } else run('createLink', href);
     }
     setLinkOpen(false);
   };

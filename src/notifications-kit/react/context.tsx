@@ -188,6 +188,13 @@ export interface NotificationsProviderProps {
   /** Report rather than throw: a failed background command, a contract
    *  mismatch. Wire it to the host's logger. */
   onError?: (error: unknown) => void;
+  /**
+   * Opens a path of the cabinet in place - the host's router. A link in a
+   * message that leads into the cabinet (`/preorders/new`, or a full
+   * address on the same origin) then opens without a new tab, and the
+   * dialog it was in closes. Without it such links open in a new tab.
+   */
+  navigate?: (path: string) => void;
   /** Settings of the administration components (0.2). */
   admin?: AdminOptions;
   /**
@@ -213,6 +220,7 @@ export interface NotificationsContextValue {
     | ((html: string, source: InboxEntry | AnnouncementEntry) => ReactNode)
     | undefined;
   onError: (error: unknown) => void;
+  navigate: ((path: string) => void) | undefined;
   admin: ResolvedAdminOptions;
   storageScope: string;
   /** What the administration forms are previewing on this page. */
@@ -259,6 +267,7 @@ export function NotificationsProvider({
   resolvePresentation = defaultPresentation,
   renderHtml,
   onError = ignore,
+  navigate,
   admin,
   storageScope = 'default',
   children,
@@ -294,6 +303,7 @@ export function NotificationsProvider({
       resolvePresentation,
       renderHtml,
       onError,
+      navigate,
       admin: resolvedAdmin,
       storageScope,
       preview,
@@ -312,6 +322,7 @@ export function NotificationsProvider({
       resolvePresentation,
       renderHtml,
       onError,
+      navigate,
       resolvedAdmin,
       storageScope,
       preview,

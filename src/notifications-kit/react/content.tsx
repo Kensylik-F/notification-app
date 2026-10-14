@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 
 import type { AnnouncementEntry, InboxEntry } from '../core';
-import { htmlToText } from './admin/richtext';
+import { useMemo } from 'react';
+
+import { cleanForDisplay, htmlToText } from './admin/richtext';
 import { useNotificationsContext } from './context';
 import { HtmlFrame, cx } from './primitives';
 import styles from './styles.module.css';
@@ -42,20 +44,39 @@ export function MessageBody({
   title,
   empty,
   className,
+  onFollow,
 }: {
   source: InboxEntry | AnnouncementEntry;
   title: string;
   empty?: ReactNode;
   className?: string;
+  /** A link into the cabinet was followed (the host's `navigate`): close
+   *  whatever holds the message. */
+  onFollow?: () => void;
 }) {
-  const { renderHtml, t } = useNotificationsContext();
-  if (source.bodyHtml) {
+  const { renderHtml, navigate, t } = useNotificationsContext();
+  const html = useMemo(
+    () => (source.bodyHtml ? cleanForDisplay(source.bodyHtml) : null),
+    [source.bodyHtml]
+  );
+  if (source.bodyHtml && html !== null) {
     return (
       <div className={cx(styles.body, className)}>
         {renderHtml ? (
           renderHtml(source.bodyHtml, source)
         ) : (
-          <HtmlFrame html={source.bodyHtml} title={title} />
+          <HtmlFrame
+            html={html}
+            title={title}
+            onInternalLink={
+              navigate
+                ? path => {
+                    onFollow?.();
+                    navigate(path);
+                  }
+                : undefined
+            }
+          />
         )}
       </div>
     );

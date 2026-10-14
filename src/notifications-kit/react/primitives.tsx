@@ -519,6 +519,8 @@ function frameDocument(html: string, host: HTMLElement | null): string {
     '<!doctype html><html><head><meta charset="utf-8"><base target="_blank">' +
     `<style>:root{color-scheme:${scheme}}html,body{margin:0;padding:0;background:transparent;color:${color};` +
     `font-family:${font};font-size:${size};line-height:1.6;overflow-wrap:anywhere}` +
+    'table{border-collapse:collapse;margin:0 0 12px}th,td{border:1px solid rgba(127,127,127,.35);padding:4px 10px;text-align:left;vertical-align:top}th{font-weight:600}' +
+    'blockquote{margin:0 0 12px;padding-left:12px;border-left:3px solid rgba(127,127,127,.35)}pre{white-space:pre-wrap}' +
     'body>*:first-child{margin-top:0}body>*:last-child{margin-bottom:0}' +
     'p{margin:0 0 12px}ul,ol{margin:0 0 12px;padding-left:20px}li{margin-bottom:4px}' +
     'h1,h2,h3{margin:16px 0 8px;line-height:1.3}' +
@@ -539,13 +541,19 @@ export function HtmlFrame({
   html,
   title,
   className,
+  onInternalLink,
 }: {
   html: string;
   title: string;
   className?: string;
+  /** A link on the page's own origin was clicked: the path to open in
+   *  place. Without it every link opens in a new tab. */
+  onInternalLink?: (path: string) => void;
 }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const observer = useRef<ResizeObserver | null>(null);
+  const internal = useRef(onInternalLink);
+  internal.current = onInternalLink;
 
   const fit = useCallback(() => {
     const frame = ref.current;
@@ -560,7 +568,23 @@ export function HtmlFrame({
   // Late layout changes - fonts, images, a narrower column - resize it too.
   const onLoad = useCallback(() => {
     observer.current?.disconnect();
-    const body = ref.current?.contentDocument?.body;
+    const doc = ref.current?.contentDocument;
+    // No scripts run inside; the page listens for clicks on links that lead
+    // into the cabinet and opens them in place.
+    doc?.addEventListener('click', event => {
+      const anchor = (event.target as Element | null)?.closest?.('a[href]');
+      if (!anchor || !internal.current) return;
+      let url: URL;
+      try {
+        url = new URL(anchor.getAttribute('href') ?? '', window.location.href);
+      } catch {
+        return;
+      }
+      if (url.origin !== window.location.origin) return;
+      event.preventDefault();
+      internal.current(`${url.pathname}${url.search}${url.hash}`);
+    });
+    const body = doc?.body;
     if (body && typeof ResizeObserver !== 'undefined') {
       observer.current = new ResizeObserver(fit);
       observer.current.observe(body);

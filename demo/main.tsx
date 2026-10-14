@@ -145,6 +145,8 @@ function App() {
   const [requestId, setRequestId] = useState<string | undefined>();
   const [dark, setDark] = useState(() => params.get('theme') === 'dark');
   const [agent, setAgent] = useState(() => params.get('ai') === 'open');
+  // Where a link inside a message led, for the demo (the host's router).
+  const [route, setRoute] = useState<string | null>(null);
   const headerRef = useRef<HTMLElement>(null);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
 
@@ -180,6 +182,7 @@ function App() {
       api={api}
       locale='ru'
       features={FEATURES}
+      navigate={setRoute}
       describeItem={describeItem}
       polling={{ unreadCountMs: 5000, announcementsMs: 10_000 }}
       admin={admin}
@@ -234,6 +237,14 @@ function App() {
               ))}
             </nav>
             <main className='main'>
+              {route && (
+                <p className='demoRoute' role='status'>
+                  Переход в кабинете: <code>{route}</code>{' '}
+                  <button className='demoButton' onClick={() => setRoute(null)}>
+                    ×
+                  </button>
+                </p>
+              )}
               {view === 'inbox' && page && (
                 <>
                   <button className='crumbLink' onClick={() => setPage(null)}>
