@@ -26,7 +26,12 @@ import {
   MESSAGES_RU,
   plural,
 } from './messages';
-import { planAnnouncements, presentationByCategory } from './presentation';
+import {
+  byPriority,
+  presentationByCategory,
+  presentationByClass,
+  queueAnnouncements,
+} from './presentation';
 
 const entry = (id: string, patch: Partial<InboxEntry> = {}): InboxEntry => ({
   id,
@@ -125,70 +130,121 @@ const announcement = (
   ...patch,
 });
 
-describe('announcement planning', () => {
-  const resolve = presentationByCategory(
-    { incident: 'modal', release: 'corner', tip: 'toast', quiet: 'none' },
-    'corner'
-  );
+describe('announcement queue', () => {
   const now = Date.parse('2026-10-12T10:00:00Z');
+  const at = (minutes: number) =>
+    new Date(now - minutes * 60_000).toISOString();
   const options = {
-    resolve,
+    resolve: presentationByClass(),
     hidden: new Set<string>(),
-    maxCorner: 2,
-    maxToasts: 1,
     now,
   };
 
-  it('routes each announcement by its category, with a fallback', () => {
-    const plan = planAnnouncements(
+  it('shows each class its own way by default', () => {
+    const resolve = presentationByClass();
+    expect(
+      resolve(announcement('a', 'x', { categoryClass: 'TRANSACTIONAL' }))
+    ).toBe('modal');
+    expect(resolve(announcement('a', 'x', { categoryClass: 'PLATFORM' }))).toBe(
+      'toast'
+    );
+    expect(
+      resolve(announcement('a', 'x', { categoryClass: 'MARKETING' }))
+    ).toBe('corner');
+    expect(resolve(announcement('a', 'x', { categoryClass: null }))).toBe(
+      'corner'
+    );
+  });
+
+  it('lets a category override the class', () => {
+    const resolve = presentationByCategory({ quiet: 'none', loud: 'modal' });
+    expect(
+      resolve(announcement('a', 'quiet', { categoryClass: 'TRANSACTIONAL' }))
+    ).toBe('none');
+    expect(
+      resolve(announcement('a', 'loud', { categoryClass: 'MARKETING' }))
+    ).toBe('modal');
+    expect(
+      resolve(announcement('a', 'other', { categoryClass: 'PLATFORM' }))
+    ).toBe('toast');
+  });
+
+  it('queues dialogs and strips oldest first, the deck newest first', () => {
+    const queue = queueAnnouncements(
       [
-        announcement('m', 'incident'),
-        announcement('c', 'release'),
-        announcement('t', 'tip'),
-        announcement('n', 'quiet'),
-        announcement('u', 'unmapped'),
+        announcement('m-new', 'x', {
+          categoryClass: 'TRANSACTIONAL',
+          publishedAt: at(1),
+        }),
+        announcement('m-old', 'x', {
+          categoryClass: 'TRANSACTIONAL',
+          publishedAt: at(9),
+        }),
+        announcement('t-new', 'x', {
+          categoryClass: 'PLATFORM',
+          publishedAt: at(2),
+        }),
+        announcement('t-old', 'x', {
+          categoryClass: 'PLATFORM',
+          publishedAt: at(8),
+        }),
+        announcement('c-old', 'x', {
+          categoryClass: 'MARKETING',
+          publishedAt: at(7),
+        }),
+        announcement('c-new', 'x', {
+          categoryClass: 'MARKETING',
+          publishedAt: at(3),
+        }),
       ],
       options
     );
-    expect(plan.modal?.id).toBe('m');
-    expect(plan.corner.map(a => a.id)).toEqual(['c', 'u']);
-    expect(plan.toasts.map(a => a.id)).toEqual(['t']);
+    expect(queue.modal.map(a => a.id)).toEqual(['m-old', 'm-new']);
+    expect(queue.toast.map(a => a.id)).toEqual(['t-old', 't-new']);
+    expect(queue.corner.map(a => a.id)).toEqual(['c-new', 'c-old']);
   });
 
-  it('shows queued dialogs oldest first, one at a time', () => {
-    // The feed is newest first.
-    const plan = planAnnouncements(
-      [announcement('newer', 'incident'), announcement('older', 'incident')],
+  it('has no limit on the deck', () => {
+    const queue = queueAnnouncements(
+      ['1', '2', '3', '4', '5', '6', '7'].map(id =>
+        announcement(id, 'x', { categoryClass: 'MARKETING' })
+      ),
       options
     );
-    expect(plan.modal?.id).toBe('older');
+    expect(queue.corner).toHaveLength(7);
   });
 
-  it('respects the on-screen limits', () => {
-    const plan = planAnnouncements(
-      ['1', '2', '3'].map(id => announcement(id, 'release')),
-      options
-    );
-    expect(plan.corner).toHaveLength(2);
-  });
-
-  it('skips dismissed, session-hidden and out-of-window announcements', () => {
-    const plan = planAnnouncements(
+  it('skips dismissed, hidden and out-of-window announcements', () => {
+    const queue = queueAnnouncements(
       [
-        announcement('dismissed', 'release', { dismissed: true }),
-        announcement('hidden', 'tip'),
-        announcement('expired', 'release', {
-          visibleUntil: '2026-10-12T09:59:59Z',
-        }),
-        announcement('future', 'release', {
-          visibleFrom: '2026-10-13T00:00:00Z',
-        }),
-        announcement('ok', 'release'),
+        announcement('dismissed', 'x', { dismissed: true }),
+        announcement('hidden', 'x'),
+        announcement('expired', 'x', { visibleUntil: '2026-10-12T09:59:59Z' }),
+        announcement('future', 'x', { visibleFrom: '2026-10-13T00:00:00Z' }),
+        announcement('ok', 'x'),
       ],
       { ...options, hidden: new Set(['hidden']) }
     );
-    expect(plan.corner.map(a => a.id)).toEqual(['ok']);
-    expect(plan.toasts).toHaveLength(0);
+    expect(queue.toast.map(a => a.id)).toEqual(['ok']);
+  });
+
+  it('sorts lists by importance, then newest first', () => {
+    const sorted = byPriority([
+      announcement('m-old', 'x', {
+        categoryClass: 'MARKETING',
+        publishedAt: at(9),
+      }),
+      announcement('p', 'x', { categoryClass: 'PLATFORM', publishedAt: at(1) }),
+      announcement('t', 'x', {
+        categoryClass: 'TRANSACTIONAL',
+        publishedAt: at(30),
+      }),
+      announcement('m-new', 'x', {
+        categoryClass: 'MARKETING',
+        publishedAt: at(2),
+      }),
+    ]);
+    expect(sorted.map(a => a.id)).toEqual(['t', 'p', 'm-new', 'm-old']);
   });
 });
 

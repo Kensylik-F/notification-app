@@ -40,6 +40,10 @@ const ICON_PATHS = {
   link: 'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1 M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1',
   external:
     'M14 4h6v6 M20 4l-9 9 M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
+  alert:
+    'M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z M12 9v4 M12 17h.01',
+  megaphone:
+    'M3 10.5v3a1 1 0 0 0 1 1h2.5L13 19V5L6.5 9.5H4a1 1 0 0 0-1 1z M16.5 9a4 4 0 0 1 0 6 M19 6.5a7.5 7.5 0 0 1 0 11',
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;
@@ -395,6 +399,8 @@ export interface DialogProps {
   width?: number;
   /** Focused on open; else the first focusable element. */
   initialFocus?: RefObject<HTMLElement | null>;
+  /** `'blur'` blurs the page behind as well as dimming it. Default: `'dim'`. */
+  backdrop?: 'dim' | 'blur';
   className?: string;
   children: ReactNode;
 }
@@ -411,6 +417,7 @@ export function Dialog({
   role = 'dialog',
   width = 520,
   initialFocus,
+  backdrop = 'dim',
   className,
   children,
 }: DialogProps) {
@@ -464,6 +471,7 @@ export function Dialog({
   return createPortal(
     <div
       className={cx(styles.root, styles.scrim)}
+      data-backdrop={backdrop}
       data-closing={closing || undefined}
       onPointerDown={event => {
         if (event.target === event.currentTarget) closeRef.current?.();

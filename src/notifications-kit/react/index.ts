@@ -1,8 +1,10 @@
 /** notifications-kit React layer: provider, hooks and components. */
 export {
+  ALL_FEATURES,
   NotificationsProvider,
   useNotificationsContext,
   type ItemDescription,
+  type NotificationsFeatures,
   type NotificationsContextValue,
   type NotificationsProviderProps,
   type PollingOptions,
@@ -56,11 +58,16 @@ export {
   type AnnouncementsHostProps,
 } from './AnnouncementsHost';
 export {
+  CLASS_PRESENTATION,
+  byPriority,
+  classRank,
   defaultPresentation,
-  planAnnouncements,
+  isImportant,
   presentationByCategory,
-  type AnnouncementPlan,
+  presentationByClass,
+  queueAnnouncements,
   type AnnouncementPresentation,
+  type AnnouncementQueue,
   type PresentationResolver,
 } from './presentation';
 export {

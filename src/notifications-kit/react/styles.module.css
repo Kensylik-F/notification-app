@@ -60,6 +60,46 @@
   }
 }
 
+@keyframes nk-strip-in {
+  from {
+    opacity: 0;
+    transform: translateY(-28px) scale(0.96);
+  }
+}
+
+@keyframes nk-strip-out {
+  to {
+    opacity: 0;
+    transform: translateY(-32px) scale(0.95);
+  }
+}
+
+@keyframes nk-notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.94);
+  }
+  60% {
+    opacity: 1;
+  }
+}
+
+@keyframes nk-notice-out {
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+
+@keyframes nk-pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--nk-pulse-color);
+  }
+  100% {
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+
 @keyframes nk-card-in {
   from {
     opacity: 0;
@@ -498,6 +538,13 @@
   animation: nk-fade-out 0.22s ease both;
 }
 
+/* The page behind an important dialog: dimmed and out of focus. */
+.scrim[data-backdrop='blur'] {
+  background: var(--nk-color-scrim-blur, rgba(20, 28, 26, 0.38));
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+}
+
 .dialog {
   display: flex;
   flex-direction: column;
@@ -701,6 +748,15 @@
 
 .dot[data-mark='closed'] {
   border: 1.5px solid var(--nk-color-text-faint, #9aa4a2);
+}
+
+.dot[data-tone='important'][data-mark='unread'] {
+  background: var(--nk-color-danger, #b3402a);
+  box-shadow: 0 0 0 3px var(--nk-color-danger-soft, #fbe9e3);
+}
+
+.dot[data-tone='important'][data-mark='closed'] {
+  border-color: var(--nk-color-danger, #b3402a);
 }
 
 .rowText {
@@ -1009,7 +1065,10 @@
 
 .dockCorner {
   position: absolute;
-  top: calc(var(--nk-overlay-top, 16px) + var(--nk-strips-offset, 0px));
+  top: calc(
+    var(--nk-corner-top, var(--nk-overlay-top, 16px)) +
+      var(--nk-strips-offset, 0px)
+  );
   transition: top 0.3s cubic-bezier(0.2, 0.9, 0.25, 1);
   right: var(--nk-overlay-right, 16px);
   width: min(360px, calc(100vw - 32px));
@@ -1023,7 +1082,7 @@
   position: absolute;
   top: var(--nk-overlay-top, 16px);
   left: 50%;
-  width: min(560px, calc(100vw - 32px));
+  width: min(680px, calc(100vw - 32px));
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
@@ -1184,38 +1243,219 @@
   color: var(--nk-color-accent-text, #236b60);
 }
 
-/* strip */
+/* strip: an announcement at the top centre */
 
 .strip {
   align-items: center;
-  gap: 12px;
-  padding: 10px 8px 10px 16px;
-  border-radius: 14px;
-  animation: nk-drop-in 0.36s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+  gap: 14px;
+  padding: 12px 10px 12px 12px;
+  border: 1px solid var(--nk-color-strip-border, rgba(43, 122, 110, 0.28));
+  border-radius: 16px;
+  box-shadow:
+    0 18px 44px rgba(20, 40, 35, 0.2),
+    0 3px 10px rgba(20, 40, 35, 0.08);
+  animation: nk-strip-in 0.46s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+.strip[data-tone='important'] {
+  border-color: var(--nk-color-danger-border, rgba(179, 64, 42, 0.32));
 }
 
 .strip[data-leaving='true'] {
-  animation: nk-drop-out 0.22s ease-in both;
+  animation: nk-strip-out 0.3s cubic-bezier(0.5, 0, 0.75, 0) both;
+  pointer-events: none;
 }
 
-.stripDot {
+.stripIcon {
+  --nk-pulse-color: var(--nk-color-accent-ring, rgba(43, 122, 110, 0.3));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   background: var(--nk-color-accent, #2b7a6e);
+  color: var(--nk-color-on-accent, #ffffff);
+  animation: nk-pulse 1.4s ease-out 0.5s 2;
+}
+
+.strip[data-tone='important'] .stripIcon {
+  --nk-pulse-color: rgba(179, 64, 42, 0.3);
+  background: var(--nk-color-danger, #b3402a);
 }
 
 .stripText {
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
+}
+
+.stripHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.stripTitle {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.stripBody {
+  display: -webkit-box;
+  overflow: hidden;
   font-size: 14px;
+  line-height: 20px;
+  color: var(--nk-color-text-body, #2a3331);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow-wrap: anywhere;
 }
 
 .strip .cardLink {
   margin-top: 0;
   white-space: nowrap;
+}
+
+/* "2 из 3" */
+.position {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--nk-color-chip, rgba(20, 40, 35, 0.06));
+  color: var(--nk-color-text-muted, #5d6b68);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The band behind a strip: the top of the page, blurred down to just past
+   the strip, fading out at its lower edge. */
+.band {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--nk-band-height, 0px);
+  background: linear-gradient(
+    to bottom,
+    var(--nk-color-band, rgba(20, 28, 26, 0.16)),
+    transparent
+  );
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  transition: height 0.3s cubic-bezier(0.2, 0.9, 0.25, 1);
+  animation: nk-fade-in 0.4s ease both;
+}
+
+.band[data-leaving='true'] {
+  animation: nk-fade-out 0.3s ease both;
+}
+
+/* notice: an announcement in the middle of the window */
+
+.notice {
+  position: relative;
+  gap: 14px;
+  padding: 28px 28px 24px;
+  overflow: hidden;
+  border: 1px solid var(--nk-color-border-soft, rgba(20, 40, 35, 0.08));
+  animation: nk-notice-in 0.42s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+.notice[data-closing='true'] {
+  animation: nk-notice-out 0.2s ease-in both;
+}
+
+/* A coloured edge along the top. */
+.notice::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 4px;
+  background: var(--nk-color-accent, #2b7a6e);
+}
+
+.noticeImportant::before {
+  background: var(--nk-color-danger, #b3402a);
+}
+
+.noticeTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.noticeIcon {
+  --nk-pulse-color: var(--nk-color-accent-ring, rgba(43, 122, 110, 0.3));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--nk-color-accent-soft, #e0eeea);
+  color: var(--nk-color-accent-text, #236b60);
+  animation: nk-pulse 1.4s ease-out 0.45s 2;
+}
+
+.noticeImportant .noticeIcon {
+  --nk-pulse-color: rgba(179, 64, 42, 0.28);
+  background: var(--nk-color-danger-soft, #fbe9e3);
+  color: var(--nk-color-danger, #b3402a);
+}
+
+.noticeKind {
+  flex: 1 1 auto;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nk-color-accent-text, #236b60);
+}
+
+.noticeImportant .noticeKind {
+  color: var(--nk-color-danger-text, #8c3a22);
+}
+
+.noticeTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.noticeBody {
+  font-size: 15px;
+  line-height: 24px;
+  color: var(--nk-color-text-body, #2a3331);
+}
+
+.noticeFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.noticeMeta {
+  font-size: 13px;
+  color: var(--nk-color-text-muted, #5d6b68);
 }
 
 /* the deck */
@@ -1319,7 +1559,9 @@
 /* Fanned out: a list that scrolls within the window. The padding keeps
    the cards' shadows from being cut by the scroll box. */
 .deck[data-expanded='true'] {
-  max-height: calc(100vh - var(--nk-overlay-top, 16px) - 96px);
+  max-height: calc(
+    100vh - var(--nk-corner-top, var(--nk-overlay-top, 16px)) - 96px
+  );
   overflow-y: auto;
   padding: 4px 16px 24px;
   margin: -4px -16px -24px;
@@ -1341,6 +1583,10 @@
   .deckBar,
   .inboxToast,
   .strip,
+  .stripIcon,
+  .band,
+  .notice,
+  .noticeIcon,
   .badge,
   .readerEnter,
   .listPane {

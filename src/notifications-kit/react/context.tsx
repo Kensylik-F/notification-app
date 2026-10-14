@@ -34,7 +34,9 @@ export interface ItemDescription {
 export interface AdminCategory {
   code: string;
   label: string;
-  /** Preselected class when the category is picked for a send. */
+  /** The class the service's catalogue gives the category: preselected
+   *  for a send; for an announcement category it tells the publisher how
+   *  the cabinet will show it. */
   categoryClass?: SendCategoryClass;
   /** Configured as an announcement category in the service. */
   announcement?: boolean;
@@ -97,6 +99,45 @@ export interface ResolvedAdminOptions {
   permissions: NotificationPermissions;
 }
 
+/**
+ * Parts of the kit that can be switched off, e.g. from the host's feature
+ * toggles. A part that is off renders nothing and sends no requests.
+ */
+export interface NotificationsFeatures {
+  /** The inbox: its tab, its rows in the bell, the unread badge, cards for
+   *  new notifications. */
+  inbox: boolean;
+  /** Announcements: their tab, their rows in the bell, the outstanding
+   *  count. */
+  announcements: boolean;
+  /** Announcements shown over the page (dialog, strip, deck). Needs
+   *  `announcements`. */
+  banners: boolean;
+  /** The header bell. */
+  bell: boolean;
+  /** Sending notifications: `NotificationComposer`, `DeliveryLog`. */
+  mailings: boolean;
+  /** Publishing announcements: `AnnouncementPublisher`. */
+  publishing: boolean;
+}
+
+export const ALL_FEATURES: NotificationsFeatures = {
+  inbox: true,
+  announcements: true,
+  banners: true,
+  bell: true,
+  mailings: true,
+  publishing: true,
+};
+
+function resolveFeatures(
+  features: Partial<NotificationsFeatures> | undefined
+): NotificationsFeatures {
+  const next = { ...ALL_FEATURES, ...features };
+  next.banners = next.banners && next.announcements;
+  return next;
+}
+
 export interface NotificationsProviderProps {
   /** From `createNotificationsApi`. */
   api: NotificationsApi;
@@ -111,6 +152,8 @@ export interface NotificationsProviderProps {
    * flag. Components then render their idle state. Default: `true`.
    */
   enabled?: boolean;
+  /** Switches parts of the kit off. Default: everything on. */
+  features?: Partial<NotificationsFeatures>;
   polling?: PollingOptions;
   /**
    * A list row carries no subject (the service returns it only for a single
@@ -121,7 +164,9 @@ export interface NotificationsProviderProps {
   /** A label for a row from its `templateKey`/`category`: shown until the
    *  subject arrives, and instead of it when `subjects` is `'none'`. */
   describeItem?: (entry: InboxEntry) => ItemDescription | undefined;
-  /** How each announcement is shown. Default: every one as a corner card. */
+  /** How each announcement is shown. Default: by its `categoryClass` -
+   *  TRANSACTIONAL as a dialog, PLATFORM as a strip, MARKETING (and no
+   *  class) in the deck. */
   resolvePresentation?: PresentationResolver;
   /**
    * Renders a server-produced HTML body. The kit never injects HTML itself:
@@ -151,6 +196,7 @@ export interface NotificationsContextValue {
   locale: string;
   t: Translate;
   enabled: boolean;
+  features: NotificationsFeatures;
   polling: Required<PollingOptions>;
   subjects: 'fetch' | 'none';
   describeItem: (entry: InboxEntry) => ItemDescription | undefined;
@@ -197,6 +243,7 @@ export function NotificationsProvider({
   messages,
   translate,
   enabled = true,
+  features,
   polling,
   subjects = 'fetch',
   describeItem = noDescription,
@@ -208,6 +255,19 @@ export function NotificationsProvider({
   children,
 }: NotificationsProviderProps) {
   const resolvedAdmin = useMemo(() => resolveAdmin(admin), [admin]);
+  // Compared by value: a host usually passes a fresh object each render.
+  const f = resolveFeatures(features);
+  const resolvedFeatures = useMemo<NotificationsFeatures>(
+    () => ({
+      inbox: f.inbox,
+      announcements: f.announcements,
+      banners: f.banners,
+      bell: f.bell,
+      mailings: f.mailings,
+      publishing: f.publishing,
+    }),
+    [f.inbox, f.announcements, f.banners, f.bell, f.mailings, f.publishing]
+  );
   const [preview] = useState(createPreviewStore);
   const unreadCountMs = polling?.unreadCountMs ?? 60_000;
   const announcementsMs = polling?.announcementsMs ?? 300_000;
@@ -218,6 +278,7 @@ export function NotificationsProvider({
       locale,
       t: translate ?? createTranslate(locale, messages),
       enabled,
+      features: resolvedFeatures,
       polling: { unreadCountMs, announcementsMs },
       subjects,
       describeItem,
@@ -234,6 +295,7 @@ export function NotificationsProvider({
       translate,
       messages,
       enabled,
+      resolvedFeatures,
       unreadCountMs,
       announcementsMs,
       subjects,

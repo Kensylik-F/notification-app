@@ -14,12 +14,13 @@ import {
   Tabs,
   createNotificationsApi,
   notificationKeys,
-  presentationByCategory,
 } from '../src/notifications-kit';
 import type {
   AdminOptions,
+  AnnouncementEntry,
   InboxEntry,
   NotificationCenterTab,
+  NotificationsFeatures,
 } from '../src/notifications-kit';
 import { searchPeople } from './mock-admin';
 import { createMockService } from './mock-service';
@@ -32,15 +33,19 @@ const api = createNotificationsApi({
 });
 const queryClient = new QueryClient();
 
-// The service says WHAT an announcement is; the host decides how to show it.
-const resolvePresentation = presentationByCategory(
-  {
-    'platform-incident': 'modal',
-    'platform-release': 'corner',
-    'platform-tip': 'toast',
-  },
-  'corner'
-);
+// Feature toggles, as the host's config would give them: announcements and
+// the bell on, the inbox and sending off. `?flags=all` turns everything on.
+const HOST_DEFAULTS: NotificationsFeatures = {
+  inbox: false,
+  announcements: true,
+  banners: true,
+  bell: true,
+  mailings: false,
+  publishing: true,
+};
+const initialParams = new URLSearchParams(window.location.search);
+const FEATURES: Partial<NotificationsFeatures> =
+  initialParams.get('flags') === 'all' ? {} : HOST_DEFAULTS;
 
 const LABELS: Record<string, string> = {
   preorder: 'Предзаказы',
@@ -68,9 +73,24 @@ const ADMIN: AdminOptions = {
       categoryClass: 'TRANSACTIONAL',
     },
     { code: 'digest', label: 'Новости', categoryClass: 'MARKETING' },
-    { code: 'platform-release', label: 'Выпуск', announcement: true },
-    { code: 'platform-incident', label: 'Работы и сбои', announcement: true },
-    { code: 'platform-tip', label: 'Советы', announcement: true },
+    {
+      code: 'platform-incident',
+      label: 'Работы и сбои',
+      announcement: true,
+      categoryClass: 'TRANSACTIONAL',
+    },
+    {
+      code: 'platform-tip',
+      label: 'Регламенты и советы',
+      announcement: true,
+      categoryClass: 'PLATFORM',
+    },
+    {
+      code: 'platform-release',
+      label: 'Новое в продукте',
+      announcement: true,
+      categoryClass: 'MARKETING',
+    },
   ],
   roles: [
     { code: 'MODERATOR', label: 'Модератор' },
@@ -136,12 +156,21 @@ function App() {
     setTab('inbox');
     setSelected(entry.id);
   };
+  const openAnnouncement = (entry: AnnouncementEntry) => {
+    setPage(null);
+    setView('inbox');
+    setTab('announcements');
+    setSelected(entry.id);
+  };
+  const navHidden = (id: View | null) =>
+    (id === 'compose' && FEATURES.mailings === false) ||
+    (id === 'announce' && FEATURES.publishing === false);
 
   return (
     <NotificationsProvider
       api={api}
       locale='ru'
-      resolvePresentation={resolvePresentation}
+      features={FEATURES}
       describeItem={describeItem}
       polling={{ unreadCountMs: 5000, announcementsMs: 10_000 }}
       admin={admin}
@@ -149,23 +178,26 @@ function App() {
       <div className='shell'>
         <header className='header' ref={headerRef}>
           <span className='brand'>OneCheck · demo</span>
-          <button
-            className='demoButton'
-            onClick={() => {
-              service.push('Новое важное уведомление', 'HIGH');
-              void queryClient.invalidateQueries({
-                queryKey: notificationKeys.unreadCount(),
-              });
-            }}
-          >
-            + уведомление
-          </button>
+          {FEATURES.inbox !== false && (
+            <button
+              className='demoButton'
+              onClick={() => {
+                service.push('Новое важное уведомление', 'HIGH');
+                void queryClient.invalidateQueries({
+                  queryKey: notificationKeys.unreadCount(),
+                });
+              }}
+            >
+              + уведомление
+            </button>
+          )}
           <button className='demoButton' onClick={() => setDark(v => !v)}>
             {dark ? 'Светлая тема' : 'Тёмная тема'}
           </button>
           <NotificationBell
             anchorRef={headerRef}
             onOpenItem={openItem}
+            onOpenAnnouncement={openAnnouncement}
             onOpenAll={() => go('inbox')}
           />
           <span className='avatar' aria-hidden='true' />
@@ -176,17 +208,19 @@ function App() {
               {NAV.map(group => (
                 <div key={group.section}>
                   <div className='navHead'>{group.section}</div>
-                  {group.items.map(([id, label]) => (
-                    <button
-                      key={label}
-                      className='navItem'
-                      aria-current={id && view === id ? 'page' : undefined}
-                      disabled={!id}
-                      onClick={() => id && go(id)}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                  {group.items
+                    .filter(([id]) => !navHidden(id))
+                    .map(([id, label]) => (
+                      <button
+                        key={label}
+                        className='navItem'
+                        aria-current={id && view === id ? 'page' : undefined}
+                        disabled={!id}
+                        onClick={() => id && go(id)}
+                      >
+                        {label}
+                      </button>
+                    ))}
                 </div>
               ))}
             </nav>

@@ -8,6 +8,8 @@
   --ink: #1b2321;
   --muted: #5f6a68;
   --nk-color-surface-bar: rgba(246, 247, 247, 0.94);
+  /* The deck starts under the header so the bell stays reachable. */
+  --nk-corner-top: 80px;
 }
 
 :root[data-theme='dark'] {
@@ -31,6 +33,10 @@
   --nk-color-surface-hover: rgba(255, 255, 255, 0.06);
   --nk-color-surface-pressed: rgba(255, 255, 255, 0.1);
   --nk-color-surface-bar: rgba(23, 28, 27, 0.92);
+  --nk-color-scrim-blur: rgba(0, 0, 0, 0.45);
+  --nk-color-band: rgba(0, 0, 0, 0.35);
+  --nk-color-strip-border: rgba(91, 179, 171, 0.35);
+  --nk-color-danger-border: rgba(236, 139, 116, 0.4);
   --nk-color-border: rgba(255, 255, 255, 0.09);
   --nk-color-border-faint: rgba(255, 255, 255, 0.07);
   --nk-color-border-soft: rgba(255, 255, 255, 0.08);

@@ -406,7 +406,7 @@ function toFilter(form: FilterForm): DeliveryFilter {
 }
 
 /** Delivery history with filters, paging, and per-delivery details. */
-export function DeliveryLog({ requestId, pageSize = 25 }: DeliveryLogProps) {
+function DeliveryLogBody({ requestId, pageSize = 25 }: DeliveryLogProps) {
   const { t, admin } = useNotificationsContext();
   const empty: FilterForm = {
     statuses: [],
@@ -589,4 +589,10 @@ export function DeliveryLog({ requestId, pageSize = 25 }: DeliveryLogProps) {
       )}
     </div>
   );
+}
+
+/** Renders nothing while `features.mailings` is off. */
+export function DeliveryLog(props: DeliveryLogProps) {
+  const { features } = useNotificationsContext();
+  return features.mailings ? <DeliveryLogBody {...props} /> : null;
 }

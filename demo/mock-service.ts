@@ -7,7 +7,7 @@ import type {
   NotificationsTransport,
   TransportResponse,
 } from '../src/notifications-kit';
-import { createAdminMock } from './mock-admin';
+import { ANNOUNCEMENT_CLASS, createAdminMock } from './mock-admin';
 
 interface StoredItem {
   id: string;
@@ -25,10 +25,12 @@ interface StoredItem {
   dismissedAt: string | null;
 }
 
+type CategoryClass = 'TRANSACTIONAL' | 'PLATFORM' | 'MARKETING';
+
 interface StoredAnnouncement {
   id: string;
   category: string;
-  categoryClass: 'PLATFORM';
+  categoryClass: CategoryClass;
   locale: string;
   subject: string;
   bodyText: string;
@@ -142,7 +144,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     {
       id: uuid(901),
       category: 'platform-incident',
-      categoryClass: 'PLATFORM',
+      categoryClass: 'TRANSACTIONAL',
       locale: 'ru',
       subject: 'Плановые работы сегодня с 22:00 до 23:00',
       bodyText:
@@ -155,7 +157,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     {
       id: uuid(902),
       category: 'platform-release',
-      categoryClass: 'PLATFORM',
+      categoryClass: 'MARKETING',
       locale: 'ru',
       subject: 'Появился предзаказ данных',
       bodyText:
@@ -168,7 +170,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     {
       id: uuid(904),
       category: 'platform-release',
-      categoryClass: 'PLATFORM',
+      categoryClass: 'MARKETING',
       locale: 'ru',
       subject: 'Выгрузки стали быстрее',
       bodyText: 'Отчёты до 100 000 строк формируются за минуту.',
@@ -182,13 +184,43 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     {
       id: uuid(905),
       category: 'platform-release',
-      categoryClass: 'PLATFORM',
+      categoryClass: 'MARKETING',
       locale: 'ru',
       subject: 'Новый фильтр в каталоге',
       bodyText: 'Фильтруйте источники по владельцу и статусу согласования.',
       publishedAt: ago(60),
       visibleFrom: ago(60),
       visibleUntil: ahead(10),
+      dismissed: false,
+    },
+    {
+      id: uuid(906),
+      category: 'platform-incident',
+      categoryClass: 'TRANSACTIONAL',
+      locale: 'ru',
+      subject: 'Согласование предзаказов временно через почту',
+      bodyText:
+        'Пока идут работы, согласующие получают заявки письмом. Решения из письма учитываются автоматически.',
+      bodyHtml:
+        '<p>Пока идут работы, согласующие получают заявки <strong>письмом</strong>.</p>' +
+        '<ul><li>Решения из письма учитываются автоматически</li>' +
+        '<li>Статус в кабинете обновится после окончания работ</li></ul>',
+      publishedAt: ago(20),
+      visibleFrom: ago(20),
+      visibleUntil: ahead(1),
+      dismissed: false,
+    },
+    {
+      id: uuid(907),
+      category: 'platform-tip',
+      categoryClass: 'PLATFORM',
+      locale: 'ru',
+      subject: 'Обновлён регламент описания источников',
+      bodyText:
+        'С 1 ноября поле «Назначение» обязательно для всех новых источников.',
+      publishedAt: ago(150),
+      visibleFrom: ago(150),
+      visibleUntil: ahead(14),
       dismissed: false,
     },
     {
@@ -210,7 +242,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     publish: a =>
       announcements.push({
         ...a,
-        categoryClass: 'PLATFORM',
+        categoryClass: ANNOUNCEMENT_CLASS[a.category] ?? 'MARKETING',
         locale: 'ru',
         dismissed: false,
       }),

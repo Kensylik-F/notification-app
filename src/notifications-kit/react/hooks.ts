@@ -44,15 +44,49 @@ const retry = (failureCount: number, error: unknown) =>
 const retryCommand = (failureCount: number, error: unknown) =>
   shouldRetry(failureCount, error, { maxRetries: 1 });
 
+/**
+ * A failed background read is reported once to the host's `onError` - a
+ * list that does not match the contract would otherwise only leave the
+ * overlays empty. Several components share one query, and so one error
+ * object: it is reported by whichever sees it first.
+ */
+const reported = new WeakSet<object>();
+
+function useReportError(error: unknown) {
+  const { onError } = useNotificationsContext();
+  useEffect(() => {
+    if (error === null || typeof error !== 'object' || reported.has(error)) {
+      return;
+    }
+    reported.add(error);
+    onError(error);
+  }, [error, onError]);
+}
+
+/** Requests of one part of the kit are on: the kit and the part. */
+export function useFeatureOn(
+  part:
+    | 'inbox'
+    | 'announcements'
+    | 'banners'
+    | 'bell'
+    | 'mailings'
+    | 'publishing'
+): boolean {
+  const { enabled, features } = useNotificationsContext();
+  return enabled && features[part];
+}
+
 // ---------------------------------------------------------------- reading
 
 /** The unread badge. Polled: the service has no push channel. */
 export function useUnreadCount() {
-  const { api, enabled, polling } = useNotificationsContext();
-  return useQuery({
+  const { api, polling } = useNotificationsContext();
+  const on = useFeatureOn('inbox');
+  const query = useQuery({
     queryKey: notificationKeys.unreadCount(),
     queryFn: ({ signal }) => api.inbox.unreadCount({ signal }),
-    enabled,
+    enabled: on,
     refetchInterval: polling.unreadCountMs,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
@@ -60,13 +94,16 @@ export function useUnreadCount() {
     retry,
     retryDelay,
   });
+  useReportError(query.error);
+  return query;
 }
 
 /** `number` for a badge, `undefined` when there is nothing to show. Shaped
  *  for a navigation item's badge hook. */
 export function useUnreadBadge(): number | undefined {
   const { data } = useUnreadCount();
-  return data !== undefined && data > 0 ? data : undefined;
+  const on = useFeatureOn('inbox');
+  return on && data !== undefined && data > 0 ? data : undefined;
 }
 
 export interface InboxListOptions {
@@ -75,7 +112,8 @@ export interface InboxListOptions {
 }
 
 export function useInboxList(options: InboxListOptions = {}) {
-  const { api, enabled } = useNotificationsContext();
+  const { api } = useNotificationsContext();
+  const enabled = useFeatureOn('inbox');
   const pageSize = Math.min(
     options.pageSize ?? PAGE_LIMITS.DEFAULT_PAGE_SIZE,
     PAGE_LIMITS.MAX_PAGE_SIZE
@@ -107,6 +145,7 @@ export function useInboxList(options: InboxListOptions = {}) {
     retryDelay,
   });
 
+  useReportError(query.error);
   const entries = useMemo(() => flatten(query.data), [query.data]);
   const total = query.data?.pages[0]?.total ?? null;
 
@@ -115,7 +154,8 @@ export function useInboxList(options: InboxListOptions = {}) {
 
 /** One item with its subject and body. Reading it does not mark it read. */
 export function useInboxItem(id: string | undefined) {
-  const { api, enabled } = useNotificationsContext();
+  const { api } = useNotificationsContext();
+  const enabled = useFeatureOn('inbox');
   return useQuery({
     queryKey: notificationKeys.inboxItem(id ?? ''),
     queryFn: ({ signal }) => api.inbox.get(id as string, { signal }),
@@ -152,7 +192,8 @@ export function useInboxDetails(
   entries: readonly InboxEntry[],
   alwaysFetch: readonly string[] = []
 ): InboxDetails {
-  const { api, enabled, subjects } = useNotificationsContext();
+  const { api, subjects } = useNotificationsContext();
+  const enabled = useFeatureOn('inbox');
   const fetchAll = enabled && subjects === 'fetch';
 
   const ids = entries.map(entry => entry.id);
@@ -422,9 +463,12 @@ type AnnouncementPage = Page<AnnouncementEntry>;
 
 /** The caller's outstanding announcements, newest first. */
 export function useAnnouncements(options: { pageSize?: number } = {}) {
-  const { api, enabled, polling } = useNotificationsContext();
-  const top = Math.min(options.pageSize ?? 20, PAGE_LIMITS.MAX_PAGE_SIZE);
-  return useQuery({
+  const { api, polling } = useNotificationsContext();
+  const enabled = useFeatureOn('announcements');
+  // One list for every reader (the overlays, the bell, the page), so they
+  // agree and the service is asked once.
+  const top = Math.min(options.pageSize ?? 50, PAGE_LIMITS.MAX_PAGE_SIZE);
+  const query = useQuery({
     queryKey: notificationKeys.announcementList({ top }),
     queryFn: ({ signal }) => api.announcements.list({ top }, { signal }),
     enabled,
@@ -435,11 +479,14 @@ export function useAnnouncements(options: { pageSize?: number } = {}) {
     retry,
     retryDelay,
   });
+  useReportError(query.error);
+  return query;
 }
 
 export function useOutstandingAnnouncementCount() {
-  const { api, enabled, polling } = useNotificationsContext();
-  return useQuery({
+  const { api, polling } = useNotificationsContext();
+  const enabled = useFeatureOn('announcements');
+  const query = useQuery({
     queryKey: notificationKeys.outstandingCount(),
     queryFn: ({ signal }) => api.announcements.outstandingCount({ signal }),
     enabled,
@@ -448,6 +495,8 @@ export function useOutstandingAnnouncementCount() {
     retry,
     retryDelay,
   });
+  useReportError(query.error);
+  return query;
 }
 
 /** Dismisses for this caller alone. Idempotent, so it is safe to repeat.
@@ -514,7 +563,8 @@ export function useDismissedAnnouncements(): DismissedAnnouncement[] {
 
 /** One announcement by id. Answers 404 once its window has ended. */
 export function useAnnouncement(id: string | undefined) {
-  const { api, enabled } = useNotificationsContext();
+  const { api } = useNotificationsContext();
+  const enabled = useFeatureOn('announcements');
   return useQuery({
     queryKey: notificationKeys.announcement(id ?? ''),
     queryFn: ({ signal }) => api.announcements.get(id as string, { signal }),

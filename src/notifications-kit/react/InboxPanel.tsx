@@ -155,6 +155,8 @@ export function DismissAllButton() {
 
 /** "Mark all read" and "Dismiss all" side by side - for a page header. */
 export function InboxActions() {
+  const { features } = useNotificationsContext();
+  if (!features.inbox) return null;
   return (
     <div className={cx(styles.root, styles.actions)}>
       <MarkAllReadButton />

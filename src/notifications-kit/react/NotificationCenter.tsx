@@ -4,9 +4,9 @@ import type { ReactNode, RefObject } from 'react';
 import { isNotificationsError } from '../core';
 import type { AnnouncementEntry, InboxEntry } from '../core';
 import type { DismissedAnnouncement } from './announcementHistory';
-import { MessageBody, plainText } from './content';
+import { MessageBody } from './content';
 import { useNotificationsContext } from './context';
-import { formatCardTime, formatDay, formatListTime } from './format';
+import { formatCardTime, formatDay } from './format';
 import {
   useAnnouncement,
   useAnnouncements,
@@ -18,8 +18,9 @@ import {
 } from './hooks';
 import { InboxItemView } from './InboxItemView';
 import { InboxActions, InboxList } from './InboxPanel';
-import { ListRow } from './InboxRow';
+import { AnnouncementRow } from './InboxRow';
 import { useFlip, useLeaving } from './motion';
+import { byPriority, isImportant } from './presentation';
 import {
   Button,
   Chip,
@@ -104,14 +105,21 @@ export function NotificationCenter({
   pageSize,
   className,
 }: NotificationCenterProps) {
-  const { t } = useNotificationsContext();
+  const { t, features } = useNotificationsContext();
   const rootRef = useRef<HTMLDivElement>(null);
   const compact = useCompact(rootRef);
-  const [tab, setTab] = useMaybeControlled<NotificationCenterTab>(
+  const [chosenTab, setTab] = useMaybeControlled<NotificationCenterTab>(
     tabProp,
     onTabChange,
-    'inbox'
+    features.inbox ? 'inbox' : 'announcements'
   );
+  // A part that is switched off has no tab; the other one is all there is.
+  const tabs = (['inbox', 'announcements'] as const).filter(
+    part => features[part]
+  );
+  const tab: NotificationCenterTab = tabs.includes(chosenTab)
+    ? chosenTab
+    : (tabs[0] ?? 'inbox');
   const [selected, setSelected] = useMaybeControlled<string | null>(
     selectedProp,
     onSelectedChange,
@@ -123,7 +131,7 @@ export function NotificationCenter({
     false
   );
   const { data: unread } = useUnreadCount();
-  const active = useAnnouncements({ pageSize: 50 });
+  const active = useAnnouncements();
   const activeCount = active.data?.items.length ?? 0;
 
   const showList = !compact || !selected;
@@ -141,56 +149,60 @@ export function NotificationCenter({
           {tab === 'inbox' && <InboxActions />}
         </div>
       )}
-      <Tabs
-        label={t('bell.title')}
-        value={tab}
-        onChange={next => {
-          setTab(next);
-          setSelected(null);
-        }}
-        items={[
-          { value: 'inbox', label: t('center.tab.inbox'), count: unread },
-          {
-            value: 'announcements',
-            label: t('center.tab.announcements'),
-            count: activeCount,
-          },
-        ]}
-        after={
-          tab === 'inbox' ? (
-            <Switch
-              checked={unreadOnly}
-              onChange={value => {
-                setUnreadOnly(value);
-                setSelected(null);
-              }}
-              label={t('center.unreadOnly')}
+      {tabs.length > 1 && (
+        <Tabs
+          label={t('bell.title')}
+          value={tab}
+          onChange={next => {
+            setTab(next);
+            setSelected(null);
+          }}
+          items={[
+            { value: 'inbox', label: t('center.tab.inbox'), count: unread },
+            {
+              value: 'announcements',
+              label: t('center.tab.announcements'),
+              count: activeCount,
+            },
+          ]}
+          after={
+            tab === 'inbox' ? (
+              <Switch
+                checked={unreadOnly}
+                onChange={value => {
+                  setUnreadOnly(value);
+                  setSelected(null);
+                }}
+                label={t('center.unreadOnly')}
+              />
+            ) : undefined
+          }
+        />
+      )}
+      {tabs.length === 0 ? null : (
+        <div className={styles.split} key={tab}>
+          {tab === 'inbox' ? (
+            <InboxSide
+              unreadOnly={unreadOnly}
+              pageSize={pageSize}
+              selected={selected}
+              onSelect={setSelected}
+              onOpenItem={onOpenItem}
+              showList={showList}
+              showReader={showReader}
+              compact={compact}
             />
-          ) : undefined
-        }
-      />
-      <div className={styles.split} key={tab}>
-        {tab === 'inbox' ? (
-          <InboxSide
-            unreadOnly={unreadOnly}
-            pageSize={pageSize}
-            selected={selected}
-            onSelect={setSelected}
-            onOpenItem={onOpenItem}
-            showList={showList}
-            showReader={showReader}
-            compact={compact}
-          />
-        ) : (
-          <AnnouncementSide
-            selected={selected}
-            onSelect={setSelected}
-            showList={showList}
-            showReader={showReader}
-            compact={compact}
-          />
-        )}
-      </div>
+          ) : (
+            <AnnouncementSide
+              selected={selected}
+              onSelect={setSelected}
+              showList={showList}
+              showReader={showReader}
+              compact={compact}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -303,8 +315,8 @@ function AnnouncementSide({
   showReader: boolean;
   compact: boolean;
 }) {
-  const { t, locale } = useNotificationsContext();
-  const active = useAnnouncements({ pageSize: 50 });
+  const { t } = useNotificationsContext();
+  const active = useAnnouncements();
   const closed = useDismissedAnnouncements();
   const dismiss = useDismissAnnouncement();
   const { leaving, leave } = useLeaving();
@@ -314,7 +326,7 @@ function AnnouncementSide({
     flip.capture();
   });
 
-  const items = active.data?.items ?? [];
+  const items = byPriority(active.data?.items ?? []);
   const activeIds = new Set(items.map(e => e.id));
   // The service still lists an announcement until the dismissal lands.
   const history = closed.filter(record => !activeIds.has(record.entry.id));
@@ -359,13 +371,10 @@ function AnnouncementSide({
               ) : (
                 <ul className={styles.list}>
                   {items.map(entry => (
-                    <ListRow
+                    <AnnouncementRow
                       key={entry.id}
-                      id={entry.id}
-                      title={entry.subject ?? t('announcement.untitled')}
-                      time={formatListTime(entry.publishedAt, now, locale)}
-                      preview={plainText(entry) ?? ''}
-                      mark='unread'
+                      entry={entry}
+                      now={now}
                       selected={selected === entry.id}
                       leaving={leaving.has(entry.id)}
                       onClick={() => onSelect(entry.id)}
@@ -381,15 +390,11 @@ function AnnouncementSide({
           ) : (
             <ul className={styles.list}>
               {history.map(({ entry, dismissedAt }) => (
-                <ListRow
+                <AnnouncementRow
                   key={entry.id}
-                  id={entry.id}
-                  title={entry.subject ?? t('announcement.untitled')}
-                  time={formatListTime(entry.publishedAt, now, locale)}
-                  preview={t('feed.closedOn', {
-                    date: formatDay(dismissedAt, now, locale) ?? '—',
-                  })}
-                  mark='closed'
+                  entry={entry}
+                  now={now}
+                  closedAt={dismissedAt}
                   selected={selected === entry.id}
                   onClick={() => onSelect(entry.id)}
                 />
@@ -460,6 +465,9 @@ function AnnouncementReader({
                   ? t('feed.untilPast', { date: until })
                   : t('feed.until', { date: until })}
               </Chip>
+            )}
+            {isImportant(entry) && (
+              <Chip tone='danger'>{t('announcement.important')}</Chip>
             )}
             {label && <Chip>{label}</Chip>}
           </div>

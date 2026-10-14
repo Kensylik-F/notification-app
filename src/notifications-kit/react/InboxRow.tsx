@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 
-import type { InboxEntry } from '../core';
+import type { AnnouncementEntry, InboxEntry } from '../core';
 import { plainText } from './content';
 import { useNotificationsContext } from './context';
-import { formatListTime } from './format';
+import { formatDay, formatListTime } from './format';
+import { isImportant } from './presentation';
 import { Chip } from './primitives';
 import styles from './styles.module.css';
 
@@ -17,6 +18,8 @@ export interface ListRowProps {
   /** `unread` - accent dot and bold title; `read` - no dot; `closed` - a
    *  hollow ring and a muted title. */
   mark: 'unread' | 'read' | 'closed';
+  /** Red mark: something the person must not miss. */
+  important?: boolean;
   selected?: boolean;
   leaving?: boolean;
   chip?: ReactNode;
@@ -30,6 +33,7 @@ export function ListRow({
   time,
   preview,
   mark,
+  important,
   selected,
   leaving,
   chip,
@@ -41,6 +45,7 @@ export function ListRow({
       className={styles.row}
       data-flip={id}
       data-mark={mark}
+      data-tone={important ? 'important' : undefined}
       data-selected={selected || undefined}
       data-leaving={leaving || undefined}
     >
@@ -53,6 +58,7 @@ export function ListRow({
         <span
           className={styles.dot}
           data-mark={mark}
+          data-tone={important ? 'important' : undefined}
           role={mark === 'unread' ? 'img' : undefined}
           aria-label={mark === 'unread' ? t('inbox.unreadMark') : undefined}
         />
@@ -116,6 +122,53 @@ export function InboxRow({
       leaving={leaving}
       chip={preview ? <Chip tone='preview'>{t('preview.chip')}</Chip> : null}
       onClick={() => onSelect(entry)}
+    />
+  );
+}
+
+/**
+ * An announcement in a list (the bell, the page): a red mark and
+ * "Important" for TRANSACTIONAL. `closedAt` - closed in this browser.
+ */
+export function AnnouncementRow({
+  entry,
+  now,
+  closedAt,
+  selected,
+  leaving,
+  onClick,
+}: {
+  entry: AnnouncementEntry;
+  now: number;
+  closedAt?: string;
+  selected?: boolean;
+  leaving?: boolean;
+  onClick: () => void;
+}) {
+  const { t, locale } = useNotificationsContext();
+  const important = isImportant(entry);
+  return (
+    <ListRow
+      id={entry.id}
+      title={entry.subject ?? t('announcement.untitled')}
+      time={formatListTime(entry.publishedAt, now, locale)}
+      preview={
+        closedAt !== undefined
+          ? t('feed.closedOn', {
+              date: formatDay(closedAt, now, locale) ?? '—',
+            })
+          : (plainText(entry) ?? '')
+      }
+      mark={closedAt !== undefined ? 'closed' : 'unread'}
+      important={important}
+      selected={selected}
+      leaving={leaving}
+      chip={
+        important ? (
+          <Chip tone='danger'>{t('announcement.important')}</Chip>
+        ) : null
+      }
+      onClick={onClick}
     />
   );
 }

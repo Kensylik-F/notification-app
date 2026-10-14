@@ -138,30 +138,33 @@ export function useLeaving() {
     return () => pending.forEach(timer => window.clearTimeout(timer));
   }, []);
 
-  const leave = useCallback((id: string, done: () => void, delay = 0) => {
-    if (prefersReducedMotion()) {
-      done();
-      return;
-    }
-    if (timers.current.has(id)) return;
-    const start = () => setLeaving(prev => new Set(prev).add(id));
-    const startTimer = window.setTimeout(start, delay);
-    const doneTimer = window.setTimeout(() => {
-      timers.current.delete(id);
-      done();
-      setLeaving(prev => {
-        if (!prev.has(id)) return prev;
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }, delay + LEAVE_MS);
-    timers.current.set(id, doneTimer);
-    if (delay === 0) {
-      window.clearTimeout(startTimer);
-      start();
-    }
-  }, []);
+  const leave = useCallback(
+    (id: string, done: () => void, delay = 0, duration = LEAVE_MS) => {
+      if (prefersReducedMotion()) {
+        done();
+        return;
+      }
+      if (timers.current.has(id)) return;
+      const start = () => setLeaving(prev => new Set(prev).add(id));
+      const startTimer = window.setTimeout(start, delay);
+      const doneTimer = window.setTimeout(() => {
+        timers.current.delete(id);
+        done();
+        setLeaving(prev => {
+          if (!prev.has(id)) return prev;
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }, delay + duration);
+      timers.current.set(id, doneTimer);
+      if (delay === 0) {
+        window.clearTimeout(startTimer);
+        start();
+      }
+    },
+    []
+  );
 
   return { leaving, leave };
 }

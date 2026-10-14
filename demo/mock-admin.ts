@@ -335,6 +335,16 @@ export interface PublishedAnnouncement {
  *  category configuration would say. */
 const EMAILED_CATEGORIES = new Set(['platform-incident']);
 
+/** The service's announcement catalogue: the category decides the class. */
+export const ANNOUNCEMENT_CLASS: Record<
+  string,
+  'TRANSACTIONAL' | 'PLATFORM' | 'MARKETING'
+> = {
+  'platform-incident': 'TRANSACTIONAL',
+  'platform-tip': 'PLATFORM',
+  'platform-release': 'MARKETING',
+};
+
 export function createAdminMock(options: {
   publish: (announcement: PublishedAnnouncement) => void;
   correct: (
@@ -769,7 +779,7 @@ export function createAdminMock(options: {
       const admin = {
         id,
         category: body.category,
-        categoryClass: 'PLATFORM',
+        categoryClass: ANNOUNCEMENT_CLASS[String(body.category)] ?? 'MARKETING',
         audienceType: body.audienceType,
         audienceValue: body.audienceValue ?? null,
         templateKey: key,

@@ -111,7 +111,7 @@ export interface NotificationComposerProps {
  * parameters; class and priority under "More". The bar at the bottom stays
  * in view with the count of deliveries, "Preview" and "Send".
  */
-export function NotificationComposer({
+function NotificationComposerBody({
   defaultCategory,
   onOpenDeliveries,
   onSent,
@@ -603,4 +603,10 @@ function SendResult({
       </div>
     </div>
   );
+}
+
+/** Renders nothing while `features.mailings` is off. */
+export function NotificationComposer(props: NotificationComposerProps) {
+  const { features } = useNotificationsContext();
+  return features.mailings ? <NotificationComposerBody {...props} /> : null;
 }

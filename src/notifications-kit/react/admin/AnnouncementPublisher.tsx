@@ -121,14 +121,18 @@ function useLabels() {
   };
 }
 
-/** How the host shows an announcement of this category. */
+/** How the host shows an announcement of this category: by the class the
+ *  host knows for it (`admin.categories`), else as one without a class. */
 function usePresentationOf() {
-  const { resolvePresentation } = useNotificationsContext();
-  return (category: string): AnnouncementPresentation =>
+  const { resolvePresentation, admin } = useNotificationsContext();
+  const classOf = (category: string) =>
+    admin.categories.find(c => c.code === category.trim())?.categoryClass ??
+    null;
+  const presentationOf = (category: string): AnnouncementPresentation =>
     resolvePresentation({
       id: 'probe',
       category: category.trim() || null,
-      categoryClass: null,
+      categoryClass: classOf(category),
       locale: null,
       subject: null,
       bodyText: null,
@@ -138,6 +142,9 @@ function usePresentationOf() {
       visibleUntil: null,
       dismissed: false,
     });
+  presentationOf.known = (category: string) => classOf(category) !== null;
+  presentationOf.classOf = classOf;
+  return presentationOf;
 }
 
 /**
@@ -165,6 +172,7 @@ function useAnnouncementPreview(content: MessageContent) {
       const until = visibleUntil ? new Date(visibleUntil) : null;
       const entry = previewAnnouncementEntry(result, {
         category: category.trim() || null,
+        categoryClass: presentationOf.classOf(category),
         visibleUntil:
           until && !Number.isNaN(until.getTime()) ? until.toISOString() : null,
       });
@@ -237,7 +245,7 @@ export interface AnnouncementPublisherProps {
 }
 
 /** Publish an announcement: the message, who sees it and how, how long. */
-export function AnnouncementPublisher({
+function AnnouncementPublisherBody({
   onPublished,
 }: AnnouncementPublisherProps) {
   const { t, admin, locale } = useNotificationsContext();
@@ -308,6 +316,7 @@ export function AnnouncementPublisher({
   const days = admin.maxVisibilityDays;
   const announcementCategories = admin.categories.filter(c => c.announcement);
   const presentation = presentationOf(state.category);
+  const classKnown = presentationOf.known(state.category);
 
   const untilError =
     visible.visibleUntil === 'tooLong'
@@ -462,8 +471,10 @@ export function AnnouncementPublisher({
               <div
                 key={kind}
                 className={styles.presentation}
-                data-active={presentation === kind || undefined}
-                aria-current={presentation === kind ? 'true' : undefined}
+                data-active={(classKnown && presentation === kind) || undefined}
+                aria-current={
+                  classKnown && presentation === kind ? 'true' : undefined
+                }
               >
                 {PRESENTATION_ICON[kind]}
                 {t(`presentation.${kind}`)}
@@ -473,7 +484,9 @@ export function AnnouncementPublisher({
           <span className={styles.fieldHint}>
             {presentation === 'none'
               ? t('announce.presentation.none')
-              : t('announce.presentation.hint')}
+              : classKnown
+                ? t('announce.presentation.hint')
+                : t('announce.presentation.unknown')}
           </span>
         </FormSection>
 
@@ -954,4 +967,10 @@ export function EmailRunProgress({
       {cancel.isError && <ErrorNotice error={cancel.error} t={t} />}
     </div>
   );
+}
+
+/** Renders nothing while `features.publishing` is off. */
+export function AnnouncementPublisher(props: AnnouncementPublisherProps) {
+  const { features } = useNotificationsContext();
+  return features.publishing ? <AnnouncementPublisherBody {...props} /> : null;
 }

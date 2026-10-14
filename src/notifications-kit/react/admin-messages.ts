@@ -327,7 +327,9 @@ export const ADMIN_MESSAGES_RU = {
   'announce.audience.roleNamed': 'Роль «{role}»',
   'announce.presentation': 'Как покажется',
   'announce.presentation.hint':
-    'Вид подсвечивается сам по введённой категории — так её показывает кабинет.',
+    'Вид подсвечивается сам по классу категории — так её показывает кабинет.',
+  'announce.presentation.unknown':
+    'Вид задаёт класс категории в каталоге сервиса: важные — окном, сервисные — полосой сверху, остальные — в углу. Класс этой категории кабинету неизвестен, предпросмотр покажет её в углу.',
   'announce.presentation.none':
     'Объявления этой категории в кабинете поверх страницы не показываются.',
   'presentation.corner': 'В углу, стопкой',
@@ -669,7 +671,9 @@ export const ADMIN_MESSAGES_EN: Record<keyof typeof ADMIN_MESSAGES_RU, string> =
     'announce.audience.roleNamed': 'Role “{role}”',
     'announce.presentation': 'How it shows',
     'announce.presentation.hint':
-      'Highlighted from the category entered — this is how the cabinet shows it.',
+      'Highlighted from the category class — this is how the cabinet shows it.',
+    'announce.presentation.unknown':
+      'The category class in the service catalogue decides: important ones as a dialog, platform ones as a strip at the top, the rest in the corner. This category’s class is unknown here, so the preview shows it in the corner.',
     'announce.presentation.none':
       'Announcements of this category are not shown over the page.',
     'presentation.corner': 'In the corner, stacked',

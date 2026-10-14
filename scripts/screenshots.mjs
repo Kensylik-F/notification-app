@@ -1,7 +1,8 @@
 // Renders the demo in Chromium and saves screenshots of the main states to
 // ./shots. A visual check for the maintainer; not part of the test suite.
 // `node scripts/screenshots.mjs [group]` - groups: center, deck, arrival,
-// compose, announce, log, dark, narrow.
+// compose, announce, log, dark, narrow, queue (the host's defaults: inbox
+// and sending off).
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,22 +28,40 @@ const browser = await chromium.launch({
 });
 const errors = [];
 
+/** Every part on (`flags=all`) unless the query says otherwise. */
 async function open(query = '', viewport = { width: 1440, height: 900 }) {
   const context = await browser.newContext({ viewport, locale: 'ru-RU' });
   const page = await context.newPage();
   page.on('console', m => m.type() === 'error' && errors.push(m.text()));
   page.on('pageerror', e => errors.push(String(e)));
-  await page.goto(`${base}/${query}`);
+  const params = new URLSearchParams(query.replace(/^\?/, ''));
+  if (!params.has('flags')) params.set('flags', 'all');
+  await page.goto(`${base}/?${params}`);
   await page.waitForSelector('[role="alertdialog"]');
   return page;
+}
+
+/** Answers the dialogs and closes the strips of the queue; the deck
+ *  comes up after them. */
+async function clearQueue(page) {
+  for (let i = 0; i < 6; i += 1) {
+    const dialog = page.getByRole('alertdialog');
+    const strip = page.getByRole('status').getByRole('button', {
+      name: 'Закрыть объявление',
+    });
+    if (await dialog.count()) {
+      await dialog.getByRole('button', { name: 'Понятно' }).click();
+    } else if (await strip.count()) {
+      await strip.first().click();
+    } else break;
+    await wait(page, 1300);
+  }
+  await wait(page, 600);
 }
 const shot = (page, name) =>
   page.screenshot({ path: resolve(OUT, `${name}.png`) });
 const wait = (page, ms) => page.waitForTimeout(ms);
-const acknowledge = async page => {
-  await page.getByRole('button', { name: 'Понятно' }).click();
-  await wait(page, 500);
-};
+const acknowledge = clearQueue;
 const run = name => !only || name.startsWith(only);
 const deckFront = page => page.locator('[data-layer="0"] button').first();
 
@@ -51,6 +70,8 @@ if (run('center')) {
   const page = await open();
   await wait(page, 700);
   await shot(page, '01-incident-modal');
+  await page.getByRole('button', { name: 'Понятно' }).click();
+  await wait(page, 1300);
   await acknowledge(page);
   await wait(page, 600);
   await shot(page, '02-center-deck');
@@ -144,7 +165,7 @@ if (run('arrival')) {
   await wait(page, 6500);
   await shot(page, '20-new-notification-card');
   await page
-    .getByRole('button', { name: /Уведомления, непрочитанных/ })
+    .getByRole('button', { name: /Уведомления, (непрочитанных|новых)/ })
     .dispatchEvent('click');
   await wait(page, 600);
   await shot(page, '21-bell');
@@ -187,7 +208,7 @@ if (run('compose')) {
   await wait(page, 1200);
   await shot(page, '33-preview-in-app');
   await page
-    .getByRole('button', { name: /Уведомления, непрочитанных/ })
+    .getByRole('button', { name: /Уведомления, (непрочитанных|новых)/ })
     .dispatchEvent('click');
   await wait(page, 600);
   await shot(page, '34-preview-in-bell');
@@ -299,6 +320,58 @@ if (run('narrow')) {
     .click();
   await wait(page, 800);
   await shot(page, '71-narrow-reader');
+  await page.context().close();
+}
+
+// ----------------------------------------------------------------- queue
+// The host's defaults: announcements and the bell on, inbox and sending off.
+if (run('queue')) {
+  const page = await open('?flags=host');
+  await wait(page, 700);
+  await shot(page, '80-queue-modal-1of2');
+  await page.getByRole('button', { name: 'Понятно' }).click();
+  await wait(page, 120);
+  await shot(page, '81-queue-modal-leaving');
+  await wait(page, 1300);
+  await shot(page, '82-queue-modal-2of2');
+  await page.getByRole('button', { name: 'Понятно' }).click();
+  await wait(page, 1500);
+  await shot(page, '83-queue-strip-1of2');
+  await page
+    .getByRole('button', { name: 'Закрыть объявление' })
+    .first()
+    .click();
+  await wait(page, 150);
+  await shot(page, '84-queue-strip-leaving');
+  await wait(page, 1400);
+  await shot(page, '85-queue-strip-2of2');
+  await page
+    .getByRole('button', { name: 'Закрыть объявление' })
+    .first()
+    .click();
+  await wait(page, 1600);
+  await shot(page, '86-queue-deck');
+  await page.getByRole('button', { name: /Уведомления, новых/ }).click();
+  await wait(page, 600);
+  await shot(page, '87-bell-announcements');
+  await page.keyboard.press('Escape');
+  await page
+    .locator('.main')
+    .getByRole('button', { name: /Плановые работы/ })
+    .click();
+  await wait(page, 700);
+  await shot(page, '88-center-announcements-only');
+  await page.context().close();
+}
+if (run('queue')) {
+  const page = await open('?flags=host&theme=dark');
+  await wait(page, 700);
+  await shot(page, '89-queue-dark-modal');
+  await page.getByRole('button', { name: 'Понятно' }).click();
+  await wait(page, 1300);
+  await page.getByRole('button', { name: 'Понятно' }).click();
+  await wait(page, 1500);
+  await shot(page, '90-queue-dark-strip');
   await page.context().close();
 }
 

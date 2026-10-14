@@ -15,8 +15,7 @@ import {
   useUnreadCount,
 } from './hooks';
 import { useFlip, useLeaving } from './motion';
-import { planAnnouncements } from './presentation';
-import type { AnnouncementPresentation } from './presentation';
+import { isImportant, queueAnnouncements } from './presentation';
 import { PREVIEW_ID, useKitPreview } from './preview';
 import {
   Button,
@@ -31,20 +30,21 @@ import {
 import styles from './styles.module.css';
 
 export interface AnnouncementsHostProps {
-  /** How long a strip at the top and a new-notification card stay.
-   *  Default: 8000. */
+  /** How long a new-notification card stays. Default: 8000. */
   toastDurationMs?: number;
   /**
-   * What the end of that time means for an announcement strip.
-   * `'hide-for-session'` only takes it off the screen until the browser tab
-   * is closed: the service still counts it outstanding. `'dismiss'` tells
-   * the service the caller has dealt with it. Default: `'hide-for-session'`.
+   * How long a strip stays before it hides until the browser tab is closed
+   * (the service still counts it outstanding). `0` - until it is closed.
+   * Default: 0.
    */
-  toastOnTimeout?: 'hide-for-session' | 'dismiss';
-  /** Cards in the stack. Default: 5. */
+  stripDurationMs?: number;
+  /** Pause after the page loads before the first announcement. Default:
+   *  1500. */
+  firstDelayMs?: number;
+  /** Pause between one announcement closing and the next. Default: 800. */
+  gapMs?: number;
+  /** Cards in the deck. Default: no limit. */
   maxCorner?: number;
-  /** Strips on screen at once. Default: 2. */
-  maxToasts?: number;
   /** Show a card when a new notification arrives. Default: `true`. */
   inboxToasts?: boolean;
   /** "Open" on a new-notification card. Without it the card opens the
@@ -295,10 +295,29 @@ function CornerDeck({
   );
 }
 
-/** An announcement shown as a strip under the top edge of the work area. */
+export const STRIP_LEAVE_MS = 300;
+
+interface Position {
+  index: number;
+  total: number;
+}
+
+/** "2 of 3" while a queue holds more than one. */
+function positionOf(closed: number, waiting: number): Position | null {
+  const total = closed + waiting;
+  return total > 1 ? { index: closed + 1, total } : null;
+}
+
+/**
+ * An announcement shown as a strip at the top centre. It stays until it is
+ * closed; the host plays its exit (`leaving`) so the band behind it can
+ * leave together with it.
+ */
 function Strip({
   entry,
   preview,
+  position,
+  leaving,
   durationMs,
   onTimeout,
   onClose,
@@ -306,6 +325,8 @@ function Strip({
 }: {
   entry: AnnouncementEntry;
   preview: boolean;
+  position: Position | null;
+  leaving: boolean;
   durationMs: number;
   onTimeout: () => void;
   onClose: () => void;
@@ -313,26 +334,40 @@ function Strip({
 }) {
   const { t } = useNotificationsContext();
   const [hover, setHover] = useState(false);
-  const { leaving, leave } = useLeaving();
-  const out = (done: () => void) => leave(entry.id, done);
-  useTimeout(preview ? 0 : durationMs, () => out(onTimeout), hover);
+  useTimeout(preview ? 0 : durationMs, onTimeout, hover || leaving);
   const text = plainText(entry);
+  const important = isImportant(entry);
 
   return (
     <div
       className={styles.strip}
       role='status'
-      data-leaving={leaving.has(entry.id) || undefined}
+      data-tone={important ? 'important' : undefined}
+      data-leaving={leaving || undefined}
       data-preview={preview || undefined}
       onPointerEnter={() => setHover(true)}
       onPointerLeave={() => setHover(false)}
     >
-      <span className={styles.stripDot} aria-hidden='true' />
-      <span className={styles.stripText}>
-        <strong>{entry.subject ?? t('announcement.untitled')}</strong>
-        {text && <span> {text}</span>}
+      <span className={styles.stripIcon} aria-hidden='true'>
+        <Icon name={important ? 'alert' : 'megaphone'} size={18} weight={1.9} />
       </span>
-      {preview && <Chip tone='preview'>{t('preview.chip')}</Chip>}
+      <div className={styles.stripText}>
+        <span className={styles.stripHead}>
+          <strong className={styles.stripTitle}>
+            {entry.subject ?? t('announcement.untitled')}
+          </strong>
+          {position && (
+            <span className={styles.position}>
+              {t('announcement.position', {
+                index: position.index,
+                total: position.total,
+              })}
+            </span>
+          )}
+          {preview && <Chip tone='preview'>{t('preview.chip')}</Chip>}
+        </span>
+        {text && <span className={styles.stripBody}>{text}</span>}
+      </div>
       {hasMore(entry) && (
         <button type='button' className={styles.cardLink} onClick={onOpen}>
           {t('announcement.readMore')}
@@ -342,7 +377,7 @@ function Strip({
         label={
           preview ? t('preview.closePreview') : t('announcement.dismissLabel')
         }
-        onClick={() => out(onClose)}
+        onClick={onClose}
       />
     </div>
   );
@@ -410,14 +445,19 @@ function InboxToast({
 
 // ---------------------------------------------------------------- dialogs
 
-/** A blocking announcement: the only way out is the acknowledgement. */
+/**
+ * A blocking announcement in the middle of the window, over a blurred page:
+ * the only way out is the acknowledgement.
+ */
 function AnnouncementModal({
   entry,
   preview,
+  position,
   onAcknowledge,
 }: {
   entry: AnnouncementEntry;
   preview: boolean;
+  position: Position | null;
   onAcknowledge: () => void;
 }) {
   const { t, locale } = useNotificationsContext();
@@ -425,27 +465,54 @@ function AnnouncementModal({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(true);
   const title = entry.subject ?? t('announcement.untitled');
-  const time = formatCardTime(entry.publishedAt, Date.now(), locale);
+  const now = Date.now();
+  const time = formatCardTime(entry.publishedAt, now, locale);
+  const until = formatDay(entry.visibleUntil, now, locale);
+  const important = isImportant(entry);
 
   return (
     <Dialog
       open={open}
       role='alertdialog'
       labelledBy={titleId}
-      width={460}
+      width={520}
+      backdrop='blur'
       initialFocus={buttonRef}
+      className={cx(styles.notice, important && styles.noticeImportant)}
     >
-      <div className={styles.dialogHead}>
-        <span className={styles.cardMeta}>
-          <span className={styles.cardMetaText}>{time}</span>
-          {preview && <Chip tone='preview'>{t('preview.chip')}</Chip>}
+      <div className={styles.noticeTop}>
+        <span className={styles.noticeIcon} aria-hidden='true'>
+          <Icon
+            name={important ? 'alert' : 'megaphone'}
+            size={22}
+            weight={1.9}
+          />
         </span>
-        <h2 id={titleId} className={styles.dialogTitle}>
-          {title}
-        </h2>
+        <span className={styles.noticeKind}>
+          {important
+            ? t('announcement.important')
+            : t('announcement.kind.PLATFORM')}
+        </span>
+        {preview && <Chip tone='preview'>{t('preview.chip')}</Chip>}
+        {position && (
+          <span className={styles.position}>
+            {t('announcement.position', {
+              index: position.index,
+              total: position.total,
+            })}
+          </span>
+        )}
       </div>
-      <MessageBody source={entry} title={title} className={styles.dialogBody} />
-      <div className={styles.dialogActions}>
+      <h2 id={titleId} className={styles.noticeTitle}>
+        {title}
+      </h2>
+      <MessageBody source={entry} title={title} className={styles.noticeBody} />
+      <div className={styles.noticeFoot}>
+        <span className={styles.noticeMeta}>
+          {[time, until && t('feed.until', { date: until })]
+            .filter(Boolean)
+            .join(' · ')}
+        </span>
         <Button
           ref={buttonRef}
           variant='primary'
@@ -583,23 +650,37 @@ type Reading =
   | { kind: 'announcement'; entry: AnnouncementEntry; preview: boolean }
   | { kind: 'inbox'; entry: InboxEntry; preview: boolean };
 
+/** Runs `then` once, `ms` after `when` turns true. */
+function useAfter(when: boolean, ms: number, then: () => void) {
+  const callback = useRef(then);
+  callback.current = then;
+  useEffect(() => {
+    if (!when) return;
+    const timer = window.setTimeout(() => callback.current(), ms);
+    return () => window.clearTimeout(timer);
+  }, [when, ms]);
+}
+
 /**
- * Shows the caller's outstanding announcements - a blocking dialog, a deck
- * of cards in the top-right corner, or strips at the top centre, whichever
- * the provider's `resolvePresentation` picks for each - plus a card for each
- * notification that arrives, and whatever the administration forms are
- * previewing. Mount it once, anywhere under the provider.
+ * Shows the caller's outstanding announcements over the page, one after
+ * another, the most important first: dialogs in the middle (TRANSACTIONAL
+ * by default), then strips at the top centre (PLATFORM), then the deck in
+ * the top-right corner (MARKETING). Also a card for each notification that
+ * arrives, and whatever the administration forms are previewing. Mount it
+ * once, anywhere under the provider.
  */
 export function AnnouncementsHost({
   toastDurationMs = 8000,
-  toastOnTimeout = 'hide-for-session',
-  maxCorner = 5,
-  maxToasts = 2,
+  stripDurationMs = 0,
+  firstDelayMs = 1500,
+  gapMs = 800,
+  maxCorner = Infinity,
   inboxToasts = true,
   onOpenItem,
   onOpenAnnouncement,
 }: AnnouncementsHostProps) {
-  const { resolvePresentation, t, locale } = useNotificationsContext();
+  const { resolvePresentation, t, locale, features } =
+    useNotificationsContext();
   const { data } = useAnnouncements();
   const dismiss = useDismissAnnouncement();
   const { markRead } = useInboxCommands();
@@ -607,20 +688,33 @@ export function AnnouncementsHost({
   const stripsRef = useRef<HTMLDivElement>(null);
   const cornerRef = useRef<HTMLDivElement>(null);
   const [stripsOffset, setStripsOffset] = useState(0);
+  const offsetRef = useRef(0);
+  const [bandHeight, setBandHeight] = useState(0);
+  const stripMotion = useLeaving();
 
   // Strips at the top centre and cards at the top right share the top
   // edge; where they would overlap (a narrower window) the cards go under.
+  // The blurred band behind a strip reaches just past its bottom edge.
   useEffect(() => {
     const strips = stripsRef.current;
-    const corner = cornerRef.current;
-    if (!strips || !corner || typeof ResizeObserver === 'undefined') {
+    if (!strips || typeof ResizeObserver === 'undefined') {
+      offsetRef.current = 0;
       setStripsOffset(0);
+      setBandHeight(0);
       return;
     }
     const measure = () => {
       const a = strips.getBoundingClientRect();
-      const b = corner.getBoundingClientRect();
-      setStripsOffset(a.height > 0 && a.right > b.left ? a.height + 8 : 0);
+      const b = cornerRef.current?.getBoundingClientRect();
+      setBandHeight(a.height > 0 ? Math.round(a.bottom + 20) : 0);
+      // Where the corner would sit without the offset.
+      const cornerTop = b ? b.top - offsetRef.current : 0;
+      const next =
+        b && a.height > 0 && a.right > b.left && a.bottom + 8 > cornerTop
+          ? Math.round(a.bottom + 8 - cornerTop)
+          : 0;
+      offsetRef.current = next;
+      setStripsOffset(next);
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -631,7 +725,7 @@ export function AnnouncementsHost({
       window.removeEventListener('resize', measure);
     };
   });
-  const { arrivals, remove } = useArrivals(inboxToasts);
+  const { arrivals, remove } = useArrivals(inboxToasts && features.inbox);
   const [reading, setReading] = useState<Reading | null>(null);
   const [readerOpen, setReaderOpen] = useState(false);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(
@@ -653,39 +747,71 @@ export function AnnouncementsHost({
     [mutateDismiss]
   );
 
-  const announcementPreview = preview?.kind === 'announcement' ? preview : null;
+  // ---- the queue
+  // The first announcement waits for the page to settle; after one closes
+  // the next waits a moment, so they read as one after another.
+  const loaded = data !== undefined;
+  const [ready, setReady] = useState(false);
+  useAfter(loaded && !ready, firstDelayMs, () => setReady(true));
+  const [resting, setResting] = useState(false);
+  useAfter(resting, gapMs, () => setResting(false));
+  const free = ready && !resting;
+
   const entries = data?.items;
-  const plan = useMemo(() => {
-    const base = planAnnouncements(entries ?? [], {
-      resolve: resolvePresentation,
-      hidden,
-      maxCorner,
-      maxToasts,
-      now: Date.now(),
-    });
-    if (!announcementPreview) return base;
-    // The previewed announcement takes the place a real one would.
-    const entry = announcementPreview.entry;
-    const where: AnnouncementPresentation = announcementPreview.presentation;
-    return {
-      modal: where === 'modal' ? entry : base.modal,
-      corner:
-        where === 'corner'
-          ? [entry, ...base.corner].slice(0, maxCorner)
-          : base.corner,
-      toasts:
-        where === 'toast'
-          ? [entry, ...base.toasts].slice(0, maxToasts)
-          : base.toasts,
-    };
-  }, [
-    entries,
-    resolvePresentation,
-    hidden,
-    maxCorner,
-    maxToasts,
-    announcementPreview,
-  ]);
+  const queue = useMemo(
+    () =>
+      queueAnnouncements(features.banners ? (entries ?? []) : [], {
+        resolve: resolvePresentation,
+        hidden,
+        now: Date.now(),
+      }),
+    [entries, features.banners, resolvePresentation, hidden]
+  );
+
+  // Closed in this run, for "2 of 3"; a run ends when its queue empties.
+  const [closedModals, setClosedModals] = useState(0);
+  const [closedStrips, setClosedStrips] = useState(0);
+  useEffect(() => {
+    if (queue.modal.length === 0) setClosedModals(0);
+    if (queue.toast.length === 0) setClosedStrips(0);
+  }, [queue.modal.length, queue.toast.length]);
+
+  // What is on screen stays on screen; the queue decides what comes next.
+  const [stripId, setStripId] = useState<string | null>(null);
+  const [deckOn, setDeckOn] = useState(false);
+
+  const modal = free ? (queue.modal[0] ?? null) : null;
+  const shownStrip = stripId
+    ? (queue.toast.find(entry => entry.id === stripId) ?? null)
+    : null;
+  const strip =
+    shownStrip ??
+    (free && queue.modal.length === 0 ? (queue.toast[0] ?? null) : null);
+  const deckVisible =
+    queue.corner.length > 0 &&
+    (deckOn || (free && queue.modal.length === 0 && queue.toast.length === 0));
+
+  useEffect(() => {
+    setStripId(strip?.id ?? null);
+  }, [strip?.id]);
+  useEffect(() => {
+    if (deckVisible) setDeckOn(true);
+    else if (queue.corner.length === 0) setDeckOn(false);
+  }, [deckVisible, queue.corner.length]);
+
+  // ---- the preview of the administration forms skips the queue
+  const announcementPreview = preview?.kind === 'announcement' ? preview : null;
+  const previewAt = announcementPreview?.presentation ?? null;
+  const shownModal =
+    previewAt === 'modal' ? (announcementPreview?.entry ?? null) : modal;
+  const shownStripEntry =
+    previewAt === 'toast' ? (announcementPreview?.entry ?? null) : strip;
+  const corner = [
+    ...(previewAt === 'corner' && announcementPreview
+      ? [announcementPreview.entry]
+      : []),
+    ...(deckVisible ? queue.corner : []),
+  ].slice(0, maxCorner);
 
   const openReader = (next: Reading) => {
     setReading(next);
@@ -698,6 +824,26 @@ export function AnnouncementsHost({
     else openReader({ kind: 'announcement', entry, preview: isPreview });
   };
 
+  const closeStrip = (entry: AnnouncementEntry, how: 'close' | 'timeout') =>
+    stripMotion.leave(
+      entry.id,
+      () => {
+        if (entry.id === PREVIEW_ID) {
+          setPreview(null);
+          return;
+        }
+        setResting(true);
+        if (how === 'timeout') {
+          hide(entry.id);
+          return;
+        }
+        setClosedStrips(count => count + 1);
+        dismissNow(entry.id);
+      },
+      0,
+      STRIP_LEAVE_MS
+    );
+
   const inboxPreview = preview?.kind === 'inbox' ? preview.entry : null;
   const toasts: Array<{ entry: InboxEntry; preview: boolean }> = [
     ...(inboxPreview ? [{ entry: inboxPreview, preview: true }] : []),
@@ -708,6 +854,7 @@ export function AnnouncementsHost({
 
   const frameStyle = {
     '--nk-strips-offset': `${stripsOffset}px`,
+    '--nk-band-height': `${bandHeight}px`,
   } as CSSProperties;
   const readingTitle = reading
     ? (reading.entry.subject ??
@@ -728,35 +875,41 @@ export function AnnouncementsHost({
     : null;
 
   const closeReader = () => setReaderOpen(false);
+  const stripLeaving = shownStripEntry
+    ? stripMotion.leaving.has(shownStripEntry.id)
+    : false;
 
   return createPortal(
     <>
       <div className={cx(styles.root, styles.dock)} style={frameStyle}>
-        {plan.toasts.length > 0 && (
+        {shownStripEntry && (
+          <div
+            key={`band-${shownStripEntry.id}`}
+            className={styles.band}
+            data-leaving={stripLeaving || undefined}
+            aria-hidden='true'
+          />
+        )}
+        {shownStripEntry && (
           <div ref={stripsRef} className={styles.dockTop} aria-live='polite'>
-            {plan.toasts.map(entry => {
-              const isPreview = entry.id === PREVIEW_ID;
-              return (
-                <Strip
-                  key={entry.id}
-                  entry={entry}
-                  preview={isPreview}
-                  durationMs={toastDurationMs}
-                  onTimeout={() =>
-                    toastOnTimeout === 'dismiss'
-                      ? dismissNow(entry.id)
-                      : hide(entry.id)
-                  }
-                  onClose={() =>
-                    isPreview ? setPreview(null) : dismissNow(entry.id)
-                  }
-                  onOpen={() => openAnnouncement(entry)}
-                />
-              );
-            })}
+            <Strip
+              key={shownStripEntry.id}
+              entry={shownStripEntry}
+              preview={shownStripEntry.id === PREVIEW_ID}
+              position={
+                shownStripEntry.id === PREVIEW_ID
+                  ? null
+                  : positionOf(closedStrips, queue.toast.length)
+              }
+              leaving={stripLeaving}
+              durationMs={stripDurationMs}
+              onTimeout={() => closeStrip(shownStripEntry, 'timeout')}
+              onClose={() => closeStrip(shownStripEntry, 'close')}
+              onOpen={() => openAnnouncement(shownStripEntry)}
+            />
           </div>
         )}
-        {(toasts.length > 0 || plan.corner.length > 0) && (
+        {(toasts.length > 0 || corner.length > 0) && (
           <div
             ref={cornerRef}
             className={styles.dockCorner}
@@ -783,10 +936,10 @@ export function AnnouncementsHost({
                 }}
               />
             ))}
-            {plan.corner.length > 0 && (
+            {corner.length > 0 && (
               <CornerDeck
-                entries={plan.corner}
-                previewId={announcementPreview ? PREVIEW_ID : null}
+                entries={corner}
+                previewId={previewAt === 'corner' ? PREVIEW_ID : null}
                 onDismiss={dismissNow}
                 onOpen={openAnnouncement}
                 onClosePreview={() => setPreview(null)}
@@ -795,15 +948,25 @@ export function AnnouncementsHost({
           </div>
         )}
       </div>
-      {plan.modal && (
+      {shownModal && (
         <AnnouncementModal
-          key={plan.modal.id}
-          entry={plan.modal}
-          preview={plan.modal.id === PREVIEW_ID}
+          key={shownModal.id}
+          entry={shownModal}
+          preview={shownModal.id === PREVIEW_ID}
+          position={
+            shownModal.id === PREVIEW_ID
+              ? null
+              : positionOf(closedModals, queue.modal.length)
+          }
           onAcknowledge={() => {
-            const id = (plan.modal as AnnouncementEntry).id;
-            if (id === PREVIEW_ID) setPreview(null);
-            else dismissNow(id);
+            const id = shownModal.id;
+            if (id === PREVIEW_ID) {
+              setPreview(null);
+              return;
+            }
+            setResting(true);
+            setClosedModals(count => count + 1);
+            dismissNow(id);
           }}
         />
       )}
