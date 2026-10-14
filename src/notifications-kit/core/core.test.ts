@@ -15,6 +15,7 @@ import {
   odata,
   odataString,
   parseRetryAfter,
+  requestPath,
   retryDelay,
   shouldRetry,
   toInboxEntry,
@@ -161,12 +162,21 @@ describe('wire schemas', () => {
 });
 
 describe('client', () => {
+  it('sends paths without the proxy prefix /api', async () => {
+    const { transport, requests } = fakeTransport(() => ({ data: 3 }));
+    const client = createNotificationsClient({ transport });
+    await client.call('GET /api/v1/inbox/unread-count', {}).catch(() => null);
+    expect(requests[0]?.path).toBe('/v1/inbox/unread-count');
+    expect(requestPath('/api/v1/announcements')).toBe('/v1/announcements');
+    expect(requestPath('/v1/announcements')).toBe('/v1/announcements');
+  });
+
   it('substitutes and encodes path parameters', async () => {
     const { transport, requests } = fakeTransport(() => ({ data: { id: ID } }));
     const client = createNotificationsClient({ transport });
     await client.call('POST /api/v1/inbox/{id}/read', { path: { id: ID } });
     expect(requests[0]?.method).toBe('POST');
-    expect(requests[0]?.path).toBe(`/api/v1/inbox/${ID}/read`);
+    expect(requests[0]?.path).toBe(`/v1/inbox/${ID}/read`);
     expect(requests[0]?.body).toBeUndefined();
   });
 

@@ -102,6 +102,20 @@ function isAbort(error: unknown): boolean {
   );
 }
 
+/**
+ * The contract's paths start with `/api`, which in front of the service is
+ * the host's proxy prefix: the host's HTTP client adds it (or its own).
+ * So the kit sends `/v1/...` and keeps the full contract path only as the
+ * operation's name.
+ */
+export const CONTRACT_PREFIX = '/api';
+
+export function requestPath(contractPath: string): string {
+  return contractPath.startsWith(`${CONTRACT_PREFIX}/`)
+    ? contractPath.slice(CONTRACT_PREFIX.length)
+    : contractPath;
+}
+
 function hasBody(data: unknown): boolean {
   return data !== undefined && data !== null && data !== '';
 }
@@ -118,17 +132,20 @@ export function createNotificationsClient(
     const operation = OPERATIONS[key];
     const loose = input as LooseInput;
 
-    const path = operation.path.replace(/\{(\w+)\}/g, (_, name: string) => {
-      const value = loose.path?.[name];
-      if (value === undefined || value === '') {
-        throw new NotificationsError({
-          kind: 'contract',
-          operation: key,
-          message: `${key}: path parameter "${name}" is missing`,
-        });
+    const path = requestPath(operation.path).replace(
+      /\{(\w+)\}/g,
+      (_, name: string) => {
+        const value = loose.path?.[name];
+        if (value === undefined || value === '') {
+          throw new NotificationsError({
+            kind: 'contract',
+            operation: key,
+            message: `${key}: path parameter "${name}" is missing`,
+          });
+        }
+        return encodeURIComponent(value);
       }
-      return encodeURIComponent(value);
-    });
+    );
 
     const query: Array<readonly [string, string]> = [];
     for (const name of operation.queryParams as readonly string[]) {

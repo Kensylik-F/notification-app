@@ -328,12 +328,12 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     const now = new Date().toISOString();
     let match: RegExpMatchArray | null;
 
-    if (route === 'GET /api/v1/inbox/unread-count') {
+    if (route === 'GET /v1/inbox/unread-count') {
       return ok({
         unread: items.filter(i => !i.readAt && !i.dismissedAt).length,
       });
     }
-    if (route === 'GET /api/v1/inbox') {
+    if (route === 'GET /v1/inbox') {
       let rows = items
         .filter(i => !i.dismissedAt)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -342,7 +342,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
       }
       return ok(page(rows.map(listView), query));
     }
-    if (route === 'POST /api/v1/inbox/read') {
+    if (route === 'POST /v1/inbox/read') {
       const unread = items.filter(i => !i.readAt && !i.dismissedAt);
       unread.forEach(i => {
         i.readAt = now;
@@ -352,7 +352,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     }
     if (
       (match = route.match(
-        /^(GET|POST) \/api\/v1\/inbox\/([^/]+)(?:\/(seen|read|dismiss))?$/
+        /^(GET|POST) \/v1\/inbox\/([^/]+)(?:\/(seen|read|dismiss))?$/
       ))
     ) {
       const [, method, id, action] = match;
@@ -369,13 +369,13 @@ export function createMockService(options: { latencyMs?: number } = {}) {
       return ok(listView(item));
     }
 
-    if (route === 'GET /api/v1/announcements/outstanding-count') {
+    if (route === 'GET /v1/announcements/outstanding-count') {
       return ok({
         outstanding: announcements.filter(a => !a.dismissed && visible(a))
           .length,
       });
     }
-    if (route === 'GET /api/v1/announcements') {
+    if (route === 'GET /v1/announcements') {
       const rows = announcements
         .filter(a => !a.dismissed && visible(a))
         .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
@@ -383,7 +383,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     }
     if (
       (match = route.match(
-        /^(GET|POST) \/api\/v1\/announcements\/([^/]+)(\/dismiss)?$/
+        /^(GET|POST) \/v1\/announcements\/([^/]+)(\/dismiss)?$/
       ))
     ) {
       const [, , id, action] = match;

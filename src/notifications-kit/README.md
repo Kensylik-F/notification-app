@@ -34,14 +34,14 @@ import axios from 'axios';
 import type { NotificationsTransport } from '@/lib/notifications-kit';
 
 const http = axios.create({
-  baseURL: '/api/notifications', // префикс, под которым сервис стоит за шлюзом
+  baseURL: '/api', // префикс прокси, под которым стоит сервис
   validateStatus: () => true, // статус разбирает кит
 });
 
 export const transport: NotificationsTransport = async request => {
   const response = await http.request({
     method: request.method,
-    url: request.path, // '/api/v1/inbox/…' — путь из контракта
+    url: request.path, // '/v1/inbox/…' — путь без префикса `/api`
     params: new URLSearchParams(request.query.map(([k, v]) => [k, v])),
     headers: request.headers,
     data: request.body,
@@ -57,6 +57,12 @@ export const transport: NotificationsTransport = async request => {
 
 Если запрос не дошёл (сеть, таймаут, отмена), функция должна выбросить
 исключение — как это и делает axios.
+
+**Пути.** В контракте сервиса пути начинаются с `/api/v1/…`; `/api` — это
+префикс прокси. Кит отдаёт транспорту путь **без него** — `/v1/…`, а
+префикс добавляет клиент приложения (`baseURL`). Полный путь из контракта
+(`GET /api/v1/inbox`) остаётся только именем операции — в ключах, ошибках и
+логах.
 
 ### 2. Провайдер
 

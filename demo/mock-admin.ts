@@ -526,7 +526,7 @@ export function createAdminMock(options: {
     const now = Date.now();
     let m: RegExpMatchArray | null;
 
-    if (route === 'POST /api/v1/notifications/preview') {
+    if (route === 'POST /v1/notifications/preview') {
       const key = String(body.templateKey);
       try {
         const result = render(
@@ -557,7 +557,7 @@ export function createAdminMock(options: {
       }
     }
 
-    if (route === 'POST /api/v1/notifications') {
+    if (route === 'POST /v1/notifications') {
       const key = request.headers['Idempotency-Key'] ?? null;
       const known = key
         ? requests.find(r => r.idempotencyKey === key)
@@ -655,7 +655,7 @@ export function createAdminMock(options: {
       return json(201, requestView(record));
     }
 
-    if ((m = route.match(/^GET \/api\/v1\/notifications\/([0-9a-f-]{36})$/))) {
+    if ((m = route.match(/^GET \/v1\/notifications\/([0-9a-f-]{36})$/))) {
       const record = requests.find(r => r.id === m![1]);
       return record
         ? json(200, requestView(record))
@@ -667,7 +667,7 @@ export function createAdminMock(options: {
           );
     }
 
-    if (route === 'GET /api/v1/notifications/deliveries') {
+    if (route === 'GET /v1/notifications/deliveries') {
       const rows = deliveries
         .filter(d => matches(d, query.get('$filter')))
         .sort((a, b) => b.createdAt - a.createdAt);
@@ -684,7 +684,7 @@ export function createAdminMock(options: {
 
     if (
       (m = route.match(
-        /^(GET|POST) \/api\/v1\/notifications\/deliveries\/([^/]+)(?:\/(history|content|retry|cancel))?$/
+        /^(GET|POST) \/v1\/notifications\/deliveries\/([^/]+)(?:\/(history|content|retry|cancel))?$/
       ))
     ) {
       const [, , id, action] = m;
@@ -745,7 +745,7 @@ export function createAdminMock(options: {
       return json(200, deliveryView(d));
     }
 
-    if (route === 'POST /api/v1/announcements') {
+    if (route === 'POST /v1/announcements') {
       const key = String(body.templateKey);
       let content;
       try {
@@ -810,9 +810,7 @@ export function createAdminMock(options: {
       return json(201, admin);
     }
 
-    if (
-      (m = route.match(/^POST \/api\/v1\/announcements\/([^/]+)\/corrections$/))
-    ) {
+    if ((m = route.match(/^POST \/v1\/announcements\/([^/]+)\/corrections$/))) {
       const admin = published.get(m[1]!);
       if (!admin)
         return problem(
@@ -851,7 +849,7 @@ export function createAdminMock(options: {
 
     if (
       (m = route.match(
-        /^(GET|POST) \/api\/v1\/announcements\/([^/]+)\/email-run(\/cancellation)?$/
+        /^(GET|POST) \/v1\/announcements\/([^/]+)\/email-run(\/cancellation)?$/
       ))
     ) {
       const [, , id, cancel] = m;

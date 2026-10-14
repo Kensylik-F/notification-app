@@ -11,8 +11,9 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 export interface TransportRequest {
   method: HttpMethod;
-  /** Contract path with parameters already substituted, e.g.
-   *  `/api/v1/inbox/7c3f.../read`. The host prepends its own prefix. */
+  /** Path with parameters already substituted and without the contract's
+   *  `/api` prefix, e.g. `/v1/inbox/7c3f.../read`. The host prepends its
+   *  own prefix (its proxy, e.g. `/api`). */
   path: string;
   /** Query parameters in order. Names are literal (`$filter`, `$top`). */
   query: ReadonlyArray<readonly [name: string, value: string]>;
