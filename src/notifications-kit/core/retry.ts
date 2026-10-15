@@ -12,12 +12,12 @@ import { isNotificationsError } from './errors';
  */
 export const IDEMPOTENT_COMMANDS: ReadonlySet<OperationKey> =
   new Set<OperationKey>([
-    'POST /api/v1/inbox/{id}/seen',
-    'POST /api/v1/inbox/{id}/read',
-    'POST /api/v1/inbox/read',
-    'POST /api/v1/inbox/{id}/dismiss',
-    'POST /api/v1/announcements/{id}/dismiss',
-    'POST /api/v1/announcements/{id}/email-run/cancellation',
+    'POST /inbox/{id}/seen',
+    'POST /inbox/{id}/read',
+    'POST /inbox/read',
+    'POST /inbox/{id}/dismiss',
+    'POST /announcements/{id}/dismiss',
+    'POST /announcements/{id}/email-run/cancellation',
   ]);
 
 const RETRYABLE_STATUSES = new Set([408, 429, 502, 503, 504]);

@@ -374,12 +374,12 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     const now = new Date().toISOString();
     let match: RegExpMatchArray | null;
 
-    if (route === 'GET /v1/inbox/unread-count') {
+    if (route === 'GET /inbox/unread-count') {
       return ok({
         unread: items.filter(i => !i.readAt && !i.dismissedAt).length,
       });
     }
-    if (route === 'GET /v1/inbox') {
+    if (route === 'GET /inbox') {
       let rows = items
         .filter(i => !i.dismissedAt)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -388,7 +388,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
       }
       return ok(page(rows.map(listView), query));
     }
-    if (route === 'POST /v1/inbox/read') {
+    if (route === 'POST /inbox/read') {
       const unread = items.filter(i => !i.readAt && !i.dismissedAt);
       unread.forEach(i => {
         i.readAt = now;
@@ -398,7 +398,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     }
     if (
       (match = route.match(
-        /^(GET|POST) \/v1\/inbox\/([^/]+)(?:\/(seen|read|dismiss))?$/
+        /^(GET|POST) \/inbox\/([^/]+)(?:\/(seen|read|dismiss))?$/
       ))
     ) {
       const [, method, id, action] = match;
@@ -415,22 +415,20 @@ export function createMockService(options: { latencyMs?: number } = {}) {
       return ok(listView(item));
     }
 
-    if (route === 'GET /v1/announcements/outstanding-count') {
+    if (route === 'GET /announcements/outstanding-count') {
       return ok({
         outstanding: announcements.filter(a => !a.dismissed && visible(a))
           .length,
       });
     }
-    if (route === 'GET /v1/announcements') {
+    if (route === 'GET /announcements') {
       const rows = announcements
         .filter(a => !a.dismissed && visible(a))
         .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
       return ok(page(rows.map(announcementView), query));
     }
     if (
-      (match = route.match(
-        /^(GET|POST) \/v1\/announcements\/([^/]+)(\/dismiss)?$/
-      ))
+      (match = route.match(/^(GET|POST) \/announcements\/([^/]+)(\/dismiss)?$/))
     ) {
       const [, , id, action] = match;
       const found = announcements.find(a => a.id === id);

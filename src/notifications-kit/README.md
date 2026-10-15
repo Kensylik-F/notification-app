@@ -41,7 +41,7 @@ const http = axios.create({
 export const transport: NotificationsTransport = async request => {
   const response = await http.request({
     method: request.method,
-    url: request.path, // '/v1/inbox/…' — путь без префикса `/api`
+    url: request.path, // '/inbox/…' — без `/api` и `/v1`
     params: new URLSearchParams(request.query.map(([k, v]) => [k, v])),
     headers: request.headers,
     data: request.body,
@@ -58,11 +58,10 @@ export const transport: NotificationsTransport = async request => {
 Если запрос не дошёл (сеть, таймаут, отмена), функция должна выбросить
 исключение — как это и делает axios.
 
-**Пути.** В контракте сервиса пути начинаются с `/api/v1/…`; `/api` — это
-префикс прокси. Кит отдаёт транспорту путь **без него** — `/v1/…`, а
-префикс добавляет клиент приложения (`baseURL`). Полный путь из контракта
-(`GET /api/v1/inbox`) остаётся только именем операции — в ключах, ошибках и
-логах.
+**Пути.** Кит отдаёт транспорту путь **без префиксов** — `/inbox`,
+`/announcements/{id}/dismiss`. Ни `/api`, ни `/v1` в путях и в именах
+операций (`'GET /inbox'`) нет. Префикс прокси, если он нужен, добавляет
+клиент приложения (`baseURL`).
 
 ### 2. Провайдер
 

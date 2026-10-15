@@ -15,7 +15,6 @@ export {
   type TransportResponse,
 } from './transport';
 export {
-  CONTRACT_PREFIX,
   createNotificationsClient,
   requestPath,
   type CallInput,

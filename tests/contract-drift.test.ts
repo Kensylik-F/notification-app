@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
 // @ts-expect-error - plain ESM script without type declarations
-import { generate } from '../scripts/generate-contract.mjs';
+import { generate, servicePath } from '../scripts/generate-contract.mjs';
 import { OPERATIONS } from '../src/notifications-kit/core';
 
 const ROOT = resolve(__dirname, '..');
@@ -32,7 +32,9 @@ describe('contract', () => {
     const documented: string[] = [];
     for (const [path, item] of Object.entries(doc.paths)) {
       for (const method of ['get', 'post', 'put', 'patch', 'delete']) {
-        if (item[method]) documented.push(`${method.toUpperCase()} ${path}`);
+        if (item[method]) {
+          documented.push(`${method.toUpperCase()} ${servicePath(path)}`);
+        }
       }
     }
     expect(Object.keys(OPERATIONS).sort()).toEqual(documented.sort());

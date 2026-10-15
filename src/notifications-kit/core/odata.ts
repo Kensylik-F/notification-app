@@ -2,7 +2,7 @@
  * The small part of OData the kit itself needs to emit.
  *
  * Which properties and operators are allowed is the service's decision,
- * published at `GET /api/v1/filter-metadata/{entity}`. The helpers below only
+ * published at `GET /filter-metadata/{entity}`. The helpers below only
  * build syntactically valid expressions; they do not know the policy.
  */
 
@@ -62,14 +62,14 @@ export function toODataQuery(query: PageQuery = {}) {
   };
 }
 
-/** Entity names for `GET /api/v1/filter-metadata/{entity}`. */
+/** Entity names for `GET /filter-metadata/{entity}`. */
 export const FILTER_ENTITIES = {
   INBOX: 'notification-inbox',
   ANNOUNCEMENT: 'notification-announcement',
 } as const;
 
 /** Page limits the service declares for these feeds at the pinned commit.
- *  `GET /api/v1/filter-metadata/{entity}` is the live source. */
+ *  `GET /filter-metadata/{entity}` is the live source. */
 export const PAGE_LIMITS = {
   DEFAULT_PAGE_SIZE: 25,
   MAX_PAGE_SIZE: 100,

@@ -178,9 +178,16 @@ function requestOf(operation) {
   throw new Error(`Unsupported request schema: ${JSON.stringify(schema)}`);
 }
 
+// The contract's paths carry the gateway prefix and the version
+// (`/api/v1/inbox`). The cabinet's HTTP client adds whatever prefix its proxy
+// needs, so the kit names and sends operations without them: `/inbox`.
+export const servicePath = contractPath =>
+  contractPath.replace(/^\/api(?=\/)/, '').replace(/^\/v\d+(?=\/)/, '');
+
 function emitOperations(doc) {
   const entries = [];
-  for (const [path, item] of Object.entries(doc.paths)) {
+  for (const [contractPath, item] of Object.entries(doc.paths)) {
+    const path = servicePath(contractPath);
     for (const method of METHODS) {
       const operation = item[method];
       if (!operation) continue;

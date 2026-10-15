@@ -34,9 +34,9 @@ export const CONTRACT_INFO = {
 } as const;
 
 export const OPERATIONS = {
-  'GET /api/v1/announcements': {
+  'GET /announcements': {
     method: 'GET',
-    path: '/api/v1/announcements',
+    path: '/announcements',
     summary: 'List the announcements addressed to the caller',
     tag: 'Announcements',
     pathParams: [],
@@ -48,9 +48,9 @@ export const OPERATIONS = {
     request: null,
     response: PageResponseAnnouncementSchema,
   },
-  'POST /api/v1/announcements': {
+  'POST /announcements': {
     method: 'POST',
-    path: '/api/v1/announcements',
+    path: '/announcements',
     summary: 'Publish an announcement',
     tag: 'Announcement administration',
     pathParams: [],
@@ -62,9 +62,9 @@ export const OPERATIONS = {
     request: PublishAnnouncementRequestSchema,
     response: AnnouncementAdminSchema,
   },
-  'GET /api/v1/announcements/outstanding-count': {
+  'GET /announcements/outstanding-count': {
     method: 'GET',
-    path: '/api/v1/announcements/outstanding-count',
+    path: '/announcements/outstanding-count',
     summary: "Count the caller's outstanding announcements",
     tag: 'Announcements',
     pathParams: [],
@@ -76,9 +76,9 @@ export const OPERATIONS = {
     request: null,
     response: AnnouncementSummarySchema,
   },
-  'GET /api/v1/announcements/{id}': {
+  'GET /announcements/{id}': {
     method: 'GET',
-    path: '/api/v1/announcements/{id}',
+    path: '/announcements/{id}',
     summary: 'Read one announcement',
     tag: 'Announcements',
     pathParams: ['id'],
@@ -90,9 +90,9 @@ export const OPERATIONS = {
     request: null,
     response: AnnouncementSchema,
   },
-  'POST /api/v1/announcements/{id}/corrections': {
+  'POST /announcements/{id}/corrections': {
     method: 'POST',
-    path: '/api/v1/announcements/{id}/corrections',
+    path: '/announcements/{id}/corrections',
     summary: "Correct a published announcement's content",
     tag: 'Announcement administration',
     pathParams: ['id'],
@@ -104,9 +104,9 @@ export const OPERATIONS = {
     request: PublishAnnouncementRequestSchema,
     response: AnnouncementAdminSchema,
   },
-  'POST /api/v1/announcements/{id}/dismiss': {
+  'POST /announcements/{id}/dismiss': {
     method: 'POST',
-    path: '/api/v1/announcements/{id}/dismiss',
+    path: '/announcements/{id}/dismiss',
     summary: 'Dismiss one announcement',
     tag: 'Announcements',
     pathParams: ['id'],
@@ -118,9 +118,9 @@ export const OPERATIONS = {
     request: null,
     response: AnnouncementSchema,
   },
-  'GET /api/v1/announcements/{id}/email-run': {
+  'GET /announcements/{id}/email-run': {
     method: 'GET',
-    path: '/api/v1/announcements/{id}/email-run',
+    path: '/announcements/{id}/email-run',
     summary: "Poll an announcement's email fan-out",
     tag: 'Announcement administration',
     pathParams: ['id'],
@@ -132,9 +132,9 @@ export const OPERATIONS = {
     request: null,
     response: OperationResponseSchema,
   },
-  'POST /api/v1/announcements/{id}/email-run/cancellation': {
+  'POST /announcements/{id}/email-run/cancellation': {
     method: 'POST',
-    path: '/api/v1/announcements/{id}/email-run/cancellation',
+    path: '/announcements/{id}/email-run/cancellation',
     summary: "Cancel an announcement's email fan-out",
     tag: 'Announcement administration',
     pathParams: ['id'],
@@ -146,9 +146,9 @@ export const OPERATIONS = {
     request: null,
     response: OperationResponseSchema,
   },
-  'GET /api/v1/filter-metadata/{entity}': {
+  'GET /filter-metadata/{entity}': {
     method: 'GET',
-    path: '/api/v1/filter-metadata/{entity}',
+    path: '/filter-metadata/{entity}',
     summary: '',
     tag: 'filter-metadata-controller',
     pathParams: ['entity'],
@@ -160,9 +160,9 @@ export const OPERATIONS = {
     request: null,
     response: FilterMetadataSchema,
   },
-  'GET /api/v1/inbox': {
+  'GET /inbox': {
     method: 'GET',
-    path: '/api/v1/inbox',
+    path: '/inbox',
     summary: "List the caller's notifications",
     tag: 'Inbox',
     pathParams: [],
@@ -174,9 +174,9 @@ export const OPERATIONS = {
     request: null,
     response: PageResponseInboxItemSchema,
   },
-  'POST /api/v1/inbox/read': {
+  'POST /inbox/read': {
     method: 'POST',
-    path: '/api/v1/inbox/read',
+    path: '/inbox/read',
     summary: 'Mark every unread notification read',
     tag: 'Inbox',
     pathParams: [],
@@ -188,9 +188,9 @@ export const OPERATIONS = {
     request: null,
     response: InboxSummarySchema,
   },
-  'GET /api/v1/inbox/unread-count': {
+  'GET /inbox/unread-count': {
     method: 'GET',
-    path: '/api/v1/inbox/unread-count',
+    path: '/inbox/unread-count',
     summary: "Count the caller's unread notifications",
     tag: 'Inbox',
     pathParams: [],
@@ -202,9 +202,9 @@ export const OPERATIONS = {
     request: null,
     response: InboxSummarySchema,
   },
-  'GET /api/v1/inbox/{id}': {
+  'GET /inbox/{id}': {
     method: 'GET',
-    path: '/api/v1/inbox/{id}',
+    path: '/inbox/{id}',
     summary: 'Read one notification',
     tag: 'Inbox',
     pathParams: ['id'],
@@ -216,9 +216,9 @@ export const OPERATIONS = {
     request: null,
     response: InboxItemSchema,
   },
-  'POST /api/v1/inbox/{id}/dismiss': {
+  'POST /inbox/{id}/dismiss': {
     method: 'POST',
-    path: '/api/v1/inbox/{id}/dismiss',
+    path: '/inbox/{id}/dismiss',
     summary: 'Dismiss one notification',
     tag: 'Inbox',
     pathParams: ['id'],
@@ -230,9 +230,9 @@ export const OPERATIONS = {
     request: null,
     response: InboxItemSchema,
   },
-  'POST /api/v1/inbox/{id}/read': {
+  'POST /inbox/{id}/read': {
     method: 'POST',
-    path: '/api/v1/inbox/{id}/read',
+    path: '/inbox/{id}/read',
     summary: 'Mark one notification read',
     tag: 'Inbox',
     pathParams: ['id'],
@@ -244,9 +244,9 @@ export const OPERATIONS = {
     request: null,
     response: InboxItemSchema,
   },
-  'POST /api/v1/inbox/{id}/seen': {
+  'POST /inbox/{id}/seen': {
     method: 'POST',
-    path: '/api/v1/inbox/{id}/seen',
+    path: '/inbox/{id}/seen',
     summary: 'Mark one notification seen',
     tag: 'Inbox',
     pathParams: ['id'],
@@ -258,9 +258,9 @@ export const OPERATIONS = {
     request: null,
     response: InboxItemSchema,
   },
-  'POST /api/v1/notifications': {
+  'POST /notifications': {
     method: 'POST',
-    path: '/api/v1/notifications',
+    path: '/notifications',
     summary: 'Submit a notification request',
     tag: 'Notifications',
     pathParams: [],
@@ -272,9 +272,9 @@ export const OPERATIONS = {
     request: SendNotificationRequestSchema,
     response: NotificationRequestResponseSchema,
   },
-  'POST /api/v1/notifications/batch': {
+  'POST /notifications/batch': {
     method: 'POST',
-    path: '/api/v1/notifications/batch',
+    path: '/notifications/batch',
     summary: 'Submit several notification requests',
     tag: 'Notifications',
     pathParams: [],
@@ -286,9 +286,9 @@ export const OPERATIONS = {
     request: BatchSendRequestSchema,
     response: BatchSendResponseSchema,
   },
-  'GET /api/v1/notifications/deliveries': {
+  'GET /notifications/deliveries': {
     method: 'GET',
-    path: '/api/v1/notifications/deliveries',
+    path: '/notifications/deliveries',
     summary: 'Search delivery history',
     tag: 'Delivery administration',
     pathParams: [],
@@ -300,9 +300,9 @@ export const OPERATIONS = {
     request: null,
     response: PageResponseDeliveryResponseSchema,
   },
-  'GET /api/v1/notifications/deliveries/{id}': {
+  'GET /notifications/deliveries/{id}': {
     method: 'GET',
-    path: '/api/v1/notifications/deliveries/{id}',
+    path: '/notifications/deliveries/{id}',
     summary: 'Read one delivery',
     tag: 'Delivery administration',
     pathParams: ['id'],
@@ -314,9 +314,9 @@ export const OPERATIONS = {
     request: null,
     response: DeliveryResponseSchema,
   },
-  'POST /api/v1/notifications/deliveries/{id}/cancel': {
+  'POST /notifications/deliveries/{id}/cancel': {
     method: 'POST',
-    path: '/api/v1/notifications/deliveries/{id}/cancel',
+    path: '/notifications/deliveries/{id}/cancel',
     summary: 'Cancel a delivery that has not been sent',
     tag: 'Delivery administration',
     pathParams: ['id'],
@@ -328,9 +328,9 @@ export const OPERATIONS = {
     request: null,
     response: DeliveryResponseSchema,
   },
-  'GET /api/v1/notifications/deliveries/{id}/content': {
+  'GET /notifications/deliveries/{id}/content': {
     method: 'GET',
-    path: '/api/v1/notifications/deliveries/{id}/content',
+    path: '/notifications/deliveries/{id}/content',
     summary: "Read a delivery's rendered body",
     tag: 'Delivery administration',
     pathParams: ['id'],
@@ -342,9 +342,9 @@ export const OPERATIONS = {
     request: null,
     response: DeliveryContentResponseSchema,
   },
-  'GET /api/v1/notifications/deliveries/{id}/history': {
+  'GET /notifications/deliveries/{id}/history': {
     method: 'GET',
-    path: '/api/v1/notifications/deliveries/{id}/history',
+    path: '/notifications/deliveries/{id}/history',
     summary: "Read a delivery's status trail",
     tag: 'Delivery administration',
     pathParams: ['id'],
@@ -356,9 +356,9 @@ export const OPERATIONS = {
     request: null,
     response: z.array(DeliveryTransitionResponseSchema),
   },
-  'POST /api/v1/notifications/deliveries/{id}/retry': {
+  'POST /notifications/deliveries/{id}/retry': {
     method: 'POST',
-    path: '/api/v1/notifications/deliveries/{id}/retry',
+    path: '/notifications/deliveries/{id}/retry',
     summary: 'Requeue a DEAD delivery',
     tag: 'Delivery administration',
     pathParams: ['id'],
@@ -370,9 +370,9 @@ export const OPERATIONS = {
     request: null,
     response: DeliveryResponseSchema,
   },
-  'POST /api/v1/notifications/preview': {
+  'POST /notifications/preview': {
     method: 'POST',
-    path: '/api/v1/notifications/preview',
+    path: '/notifications/preview',
     summary: 'Preview a rendered template',
     tag: 'Notifications',
     pathParams: [],
@@ -384,9 +384,9 @@ export const OPERATIONS = {
     request: RenderPreviewRequestSchema,
     response: RenderPreviewResponseSchema,
   },
-  'POST /api/v1/notifications/receipts': {
+  'POST /notifications/receipts': {
     method: 'POST',
-    path: '/api/v1/notifications/receipts',
+    path: '/notifications/receipts',
     summary: 'Accept a provider delivery receipt',
     tag: 'Delivery receipts',
     pathParams: [],
@@ -398,9 +398,9 @@ export const OPERATIONS = {
     request: z.string(),
     response: null,
   },
-  'GET /api/v1/notifications/suppressions': {
+  'GET /notifications/suppressions': {
     method: 'GET',
-    path: '/api/v1/notifications/suppressions',
+    path: '/notifications/suppressions',
     summary: 'List active suppressions for a channel',
     tag: 'Suppression list',
     pathParams: [],
@@ -412,9 +412,9 @@ export const OPERATIONS = {
     request: null,
     response: z.array(SuppressionResponseSchema),
   },
-  'POST /api/v1/notifications/suppressions': {
+  'POST /notifications/suppressions': {
     method: 'POST',
-    path: '/api/v1/notifications/suppressions',
+    path: '/notifications/suppressions',
     summary: 'Suppress a destination',
     tag: 'Suppression list',
     pathParams: [],
@@ -426,9 +426,9 @@ export const OPERATIONS = {
     request: SuppressionRequestSchema,
     response: SuppressionResponseSchema,
   },
-  'DELETE /api/v1/notifications/suppressions': {
+  'DELETE /notifications/suppressions': {
     method: 'DELETE',
-    path: '/api/v1/notifications/suppressions',
+    path: '/notifications/suppressions',
     summary: 'Release a suppression',
     tag: 'Suppression list',
     pathParams: [],
@@ -440,9 +440,9 @@ export const OPERATIONS = {
     request: null,
     response: null,
   },
-  'GET /api/v1/notifications/{id}': {
+  'GET /notifications/{id}': {
     method: 'GET',
-    path: '/api/v1/notifications/{id}',
+    path: '/notifications/{id}',
     summary: 'Read a submitted request',
     tag: 'Notifications',
     pathParams: ['id'],

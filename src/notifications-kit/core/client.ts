@@ -103,17 +103,15 @@ function isAbort(error: unknown): boolean {
 }
 
 /**
- * The contract's paths start with `/api`, which in front of the service is
- * the host's proxy prefix: the host's HTTP client adds it (or its own).
- * So the kit sends `/v1/...` and keeps the full contract path only as the
- * operation's name.
+ * Paths go to the transport without any gateway or version prefix:
+ * `/inbox`, not `/api/v1/inbox` or `/v1/inbox`. The host's HTTP client adds
+ * whatever its proxy needs. Operations are already generated without the
+ * prefix; this also strips it from a path that still carries one.
  */
-export const CONTRACT_PREFIX = '/api';
+const PREFIX = /^(?:\/api(?=\/))?(?:\/v\d+(?=\/))?/;
 
-export function requestPath(contractPath: string): string {
-  return contractPath.startsWith(`${CONTRACT_PREFIX}/`)
-    ? contractPath.slice(CONTRACT_PREFIX.length)
-    : contractPath;
+export function requestPath(path: string): string {
+  return path.replace(PREFIX, '');
 }
 
 function hasBody(data: unknown): boolean {

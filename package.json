@@ -1,7 +1,7 @@
 {
   "name": "notification-app",
   "private": true,
-  "version": "0.5.5",
+  "version": "0.5.6",
   "type": "module",
   "scripts": {
     "generate": "node scripts/generate-contract.mjs",

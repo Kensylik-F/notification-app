@@ -46,7 +46,7 @@ export const HTML_SAMPLES: HtmlSample[] = [
       '<blockquote>Старые отчёты будут удалены 1 ноября. Сохраните нужные.</blockquote>' +
       '<h3>Сроки</h3>' +
       '<table border="1"><thead><tr><th>Этап</th><th>Дата</th></tr></thead><tbody><tr><td>Тестовый стенд</td><td>21.10</td></tr><tr><td>Прод</td><td>28.10</td></tr></tbody></table>' +
-      '<pre>GET /v1/announcements?$top=20</pre>' +
+      '<pre>GET /announcements?$top=20</pre>' +
       '<hr>' +
       '<p style="color:#c00;font-size:20px">Красный крупный текст из style</p>' +
       '<p><img src="https://picsum.photos/seed/onecheck/480/120" alt="Баннер релиза"></p>' +

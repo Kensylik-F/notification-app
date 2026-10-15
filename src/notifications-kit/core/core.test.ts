@@ -50,9 +50,9 @@ describe('operation table', () => {
 
   it('exposes the five OData options on every paged feed', () => {
     for (const key of [
-      'GET /api/v1/inbox',
-      'GET /api/v1/announcements',
-      'GET /api/v1/notifications/deliveries',
+      'GET /inbox',
+      'GET /announcements',
+      'GET /notifications/deliveries',
     ] as const) {
       expect(OPERATIONS[key].queryParams).toEqual([
         '$filter',
@@ -68,8 +68,8 @@ describe('operation table', () => {
     for (const key of IDEMPOTENT_COMMANDS) {
       expect(OPERATIONS[key].method).toBe('POST');
     }
-    expect(IDEMPOTENT_COMMANDS.has('POST /api/v1/announcements')).toBe(false);
-    expect(IDEMPOTENT_COMMANDS.has('POST /api/v1/notifications')).toBe(false);
+    expect(IDEMPOTENT_COMMANDS.has('POST /announcements')).toBe(false);
+    expect(IDEMPOTENT_COMMANDS.has('POST /notifications')).toBe(false);
   });
 });
 
@@ -162,21 +162,33 @@ describe('wire schemas', () => {
 });
 
 describe('client', () => {
-  it('sends paths without the proxy prefix /api', async () => {
+  it('sends paths without /api or /v1', async () => {
     const { transport, requests } = fakeTransport(() => ({ data: 3 }));
     const client = createNotificationsClient({ transport });
-    await client.call('GET /api/v1/inbox/unread-count', {}).catch(() => null);
-    expect(requests[0]?.path).toBe('/v1/inbox/unread-count');
-    expect(requestPath('/api/v1/announcements')).toBe('/v1/announcements');
-    expect(requestPath('/v1/announcements')).toBe('/v1/announcements');
+    await client.call('GET /inbox/unread-count', {}).catch(() => null);
+    expect(requests[0]?.path).toBe('/inbox/unread-count');
+    expect(requestPath('/api/v1/announcements')).toBe('/announcements');
+    expect(requestPath('/v1/announcements')).toBe('/announcements');
+    expect(requestPath('/api/announcements')).toBe('/announcements');
+    expect(requestPath('/announcements')).toBe('/announcements');
+    expect(requestPath('/v1')).toBe('/v1');
+  });
+
+  it('names no operation with /api or /v1', () => {
+    for (const key of Object.keys(OPERATIONS)) {
+      expect(key).not.toMatch(/ \/(api|v\d+)\//);
+      expect(OPERATIONS[key as keyof typeof OPERATIONS].path).not.toMatch(
+        /^\/(api|v\d+)\//
+      );
+    }
   });
 
   it('substitutes and encodes path parameters', async () => {
     const { transport, requests } = fakeTransport(() => ({ data: { id: ID } }));
     const client = createNotificationsClient({ transport });
-    await client.call('POST /api/v1/inbox/{id}/read', { path: { id: ID } });
+    await client.call('POST /inbox/{id}/read', { path: { id: ID } });
     expect(requests[0]?.method).toBe('POST');
-    expect(requests[0]?.path).toBe(`/v1/inbox/${ID}/read`);
+    expect(requests[0]?.path).toBe(`/inbox/${ID}/read`);
     expect(requests[0]?.body).toBeUndefined();
   });
 
@@ -386,7 +398,7 @@ describe('retry', () => {
   const problem = (status: number, retryAfterMs?: number) =>
     new NotificationsError({
       kind: 'problem',
-      operation: 'GET /api/v1/inbox',
+      operation: 'GET /inbox',
       message: 'x',
       status,
       retryAfterMs,
