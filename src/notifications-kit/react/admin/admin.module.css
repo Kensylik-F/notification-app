@@ -155,9 +155,23 @@
   margin-top: -1px;
   padding: 14px 0;
   border-top: 1px solid var(--nk-color-border, #e2e6e5);
-  background: var(--nk-color-surface-bar, rgba(246, 247, 247, 0.94));
-  backdrop-filter: blur(8px);
+  /* Opaque on any host: the bar colour over a solid base. */
+  background-color: var(--nk-color-bar-base, Canvas);
+  background-image: linear-gradient(
+    var(--nk-color-surface-bar, #f6f7f7),
+    var(--nk-color-surface-bar, #f6f7f7)
+  );
   box-shadow: 0 -10px 24px -18px rgba(20, 40, 35, 0.35);
+}
+
+/* Docked into the host's footer slot (`actionsContainer`): its own section
+   under the scrolling content, not over it. */
+.actionBarDocked {
+  position: static;
+  z-index: auto;
+  margin-top: 0;
+  padding: 12px var(--nk-action-bar-inline-padding, 0);
+  box-shadow: none;
 }
 
 .actionSummary {
@@ -1497,14 +1511,18 @@
   stroke-linejoin: round;
 }
 
+/* Positioned by FloatingList (fixed, on <body>). Opaque on any host: the
+   surface colour is laid over a solid base, so a translucent
+   --nk-color-surface-raised cannot let the page show through. */
 .popover {
-  position: absolute;
-  top: calc(100% + 4px);
-  inset-inline: 0;
-  z-index: 20;
-  max-height: 280px;
+  z-index: calc(var(--nk-z-overlay, 1000) + 20);
   overflow-y: auto;
-  background: var(--nk-color-surface-raised, #ffffff);
+  overscroll-behavior: contain;
+  background-color: var(--nk-color-popover, Canvas);
+  background-image: linear-gradient(
+    var(--nk-color-surface-raised, #ffffff),
+    var(--nk-color-surface-raised, #ffffff)
+  );
   border: 1px solid var(--nk-color-border, rgba(22, 40, 38, 0.1));
   border-radius: var(--nk-radius-md, 10px);
   box-shadow: var(

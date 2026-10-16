@@ -145,6 +145,10 @@ function App() {
   const [requestId, setRequestId] = useState<string | undefined>();
   const [dark, setDark] = useState(() => params.get('theme') === 'dark');
   const [agent, setAgent] = useState(() => params.get('ai') === 'open');
+  // `?dock=1`: the forms' bottom bar goes to a footer slot under the
+  // scrolling content, as a host's page shell would do.
+  const dock = params.get('dock') === '1';
+  const [footerSlot, setFooterSlot] = useState<HTMLDivElement | null>(null);
   // Where a link inside a message led, for the demo (the host's router).
   const [route, setRoute] = useState<string | null>(null);
   const headerRef = useRef<HTMLElement>(null);
@@ -236,77 +240,88 @@ function App() {
                 </div>
               ))}
             </nav>
-            <main className='main'>
-              {route && (
-                <p className='demoRoute' role='status'>
-                  Переход в кабинете: <code>{route}</code>{' '}
-                  <button className='demoButton' onClick={() => setRoute(null)}>
-                    ×
-                  </button>
-                </p>
-              )}
-              {view === 'inbox' && page && (
-                <>
-                  <button className='crumbLink' onClick={() => setPage(null)}>
-                    ← К списку уведомлений
-                  </button>
-                  <InboxItemView id={page} onDismissed={() => setPage(null)} />
-                </>
-              )}
-              {view === 'inbox' && !page && (
-                <>
-                  <p className='crumbs'>Личный кабинет / Уведомления</p>
-                  <NotificationCenter
-                    title='Уведомления'
-                    tab={tab}
-                    onTabChange={setTab}
-                    selectedId={selected}
-                    onSelectedChange={setSelected}
-                    onOpenItem={entry => setPage(entry.id)}
-                  />
-                </>
-              )}
-              {view === 'compose' && (
-                <>
-                  <p className='crumbs'>Администрирование / Рассылки</p>
-                  <h1 className='pageTitle'>Рассылки</h1>
-                  <Tabs
-                    value={mailTab}
-                    onChange={setMailTab}
-                    items={[
-                      { value: 'new', label: 'Новая рассылка' },
-                      { value: 'log', label: 'История доставок' },
-                    ]}
-                  />
-                  {mailTab === 'new' ? (
-                    <NotificationComposer
-                      onOpenDeliveries={id => {
-                        setRequestId(id);
-                        setMailTab('log');
-                      }}
-                    />
-                  ) : (
-                    <div className='pagePad'>
-                      <DeliveryLog
-                        key={requestId ?? 'all'}
-                        requestId={requestId}
-                      />
-                    </div>
-                  )}
-                </>
-              )}
-              {view === 'announce' && (
-                <>
-                  <p className='crumbs'>Администрирование / Объявления</p>
-                  <h1 className='pageTitle'>Новое объявление</h1>
-                  <p className='pageNote'>
-                    Видно всем выбранным пользователям в кабинете до даты
-                    окончания.
+            <div className='mainColumn'>
+              <main className='main'>
+                {route && (
+                  <p className='demoRoute' role='status'>
+                    Переход в кабинете: <code>{route}</code>{' '}
+                    <button
+                      className='demoButton'
+                      onClick={() => setRoute(null)}
+                    >
+                      ×
+                    </button>
                   </p>
-                  <AnnouncementPublisher />
-                </>
-              )}
-            </main>
+                )}
+                {view === 'inbox' && page && (
+                  <>
+                    <button className='crumbLink' onClick={() => setPage(null)}>
+                      ← К списку уведомлений
+                    </button>
+                    <InboxItemView
+                      id={page}
+                      onDismissed={() => setPage(null)}
+                    />
+                  </>
+                )}
+                {view === 'inbox' && !page && (
+                  <>
+                    <p className='crumbs'>Личный кабинет / Уведомления</p>
+                    <NotificationCenter
+                      title='Уведомления'
+                      tab={tab}
+                      onTabChange={setTab}
+                      selectedId={selected}
+                      onSelectedChange={setSelected}
+                      onOpenItem={entry => setPage(entry.id)}
+                    />
+                  </>
+                )}
+                {view === 'compose' && (
+                  <>
+                    <p className='crumbs'>Администрирование / Рассылки</p>
+                    <h1 className='pageTitle'>Рассылки</h1>
+                    <Tabs
+                      value={mailTab}
+                      onChange={setMailTab}
+                      items={[
+                        { value: 'new', label: 'Новая рассылка' },
+                        { value: 'log', label: 'История доставок' },
+                      ]}
+                    />
+                    {mailTab === 'new' ? (
+                      <NotificationComposer
+                        onOpenDeliveries={id => {
+                          setRequestId(id);
+                          setMailTab('log');
+                        }}
+                      />
+                    ) : (
+                      <div className='pagePad'>
+                        <DeliveryLog
+                          key={requestId ?? 'all'}
+                          requestId={requestId}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+                {view === 'announce' && (
+                  <>
+                    <p className='crumbs'>Администрирование / Объявления</p>
+                    <h1 className='pageTitle'>Новое объявление</h1>
+                    <p className='pageNote'>
+                      Видно всем выбранным пользователям в кабинете до даты
+                      окончания.
+                    </p>
+                    <AnnouncementPublisher
+                      actionsContainer={dock ? footerSlot : undefined}
+                    />
+                  </>
+                )}
+              </main>
+              {dock && <div ref={setFooterSlot} className='footerSlot' />}
+            </div>
           </div>
           {agent ? (
             <aside className='agent' aria-label='AI агент'>

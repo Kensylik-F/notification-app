@@ -2,10 +2,12 @@
  * A select and a combobox drawn by the kit, so the open list looks like the
  * rest of the page instead of the operating system's menu.
  */
-import { useEffect, useId, useRef, useState } from 'react';
-import type { KeyboardEvent, ReactNode, RefObject } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties, KeyboardEvent, ReactNode, RefObject } from 'react';
+import { createPortal } from 'react-dom';
 
 import { Icon, cx } from '../primitives';
+import kitStyles from '../styles.module.css';
 import styles from './admin.module.css';
 
 export interface DropdownOption<T extends string = string> {
@@ -17,17 +19,91 @@ export interface DropdownOption<T extends string = string> {
 
 function useOutside(
   open: boolean,
-  ref: RefObject<HTMLElement | null>,
+  refs: readonly RefObject<HTMLElement | null>[],
   close: () => void
 ) {
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!ref.current?.contains(event.target as Node)) close();
+      const target = event.target as Node;
+      if (!refs.some(ref => ref.current?.contains(target))) close();
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [open, ref, close]);
+  }, [open, refs, close]);
+}
+
+const LIST_MAX_HEIGHT = 280;
+const LIST_GAP = 4;
+const VIEWPORT_MARGIN = 8;
+
+/** Fixed position under the field, or above it when there is no room. */
+function placeUnder(anchor: HTMLElement): CSSProperties {
+  const box = anchor.getBoundingClientRect();
+  const below = window.innerHeight - box.bottom - LIST_GAP - VIEWPORT_MARGIN;
+  const above = box.top - LIST_GAP - VIEWPORT_MARGIN;
+  const up = below < Math.min(LIST_MAX_HEIGHT, 160) && above > below;
+  const room = Math.max(120, up ? above : below);
+  return {
+    position: 'fixed',
+    left: box.left,
+    width: box.width,
+    maxHeight: Math.min(LIST_MAX_HEIGHT, room),
+    ...(up
+      ? { bottom: window.innerHeight - box.top + LIST_GAP }
+      : { top: box.bottom + LIST_GAP }),
+  };
+}
+
+/**
+ * The open list, portalled to <body>. Inside the form it lived in the
+ * field's stacking context: a later section (or a host card with its own
+ * stacking context) was painted over it, showed through it and took its
+ * clicks. On <body> nothing on the page can cover or clip it.
+ */
+function FloatingList({
+  anchorRef,
+  listRef,
+  children,
+}: {
+  anchorRef: RefObject<HTMLElement>;
+  listRef: RefObject<HTMLDivElement>;
+  children: ReactNode;
+}) {
+  const [style, setStyle] = useState<CSSProperties | null>(null);
+
+  useLayoutEffect(() => {
+    const place = () => {
+      if (anchorRef.current) setStyle(placeUnder(anchorRef.current));
+    };
+    place();
+    const onScroll = (event: Event) => {
+      // Scrolling the list itself does not move the field.
+      if (listRef.current?.contains(event.target as Node)) return;
+      place();
+    };
+    window.addEventListener('resize', place);
+    // Capture: a scroll inside any container can move the field.
+    window.addEventListener('scroll', onScroll, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', onScroll, true);
+    };
+  }, [anchorRef, listRef]);
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <div
+      ref={listRef}
+      className={cx(kitStyles.root, styles.root, styles.popover)}
+      style={style ?? { position: 'fixed', visibility: 'hidden' }}
+      // Keeps focus in the field: a combobox closes on blur.
+      onPointerDown={event => event.preventDefault()}
+    >
+      {children}
+    </div>,
+    document.body
+  );
 }
 
 function OptionList<T extends string>({
@@ -111,9 +187,11 @@ export function Dropdown<T extends string>({
   const selectedIndex = options.findIndex(o => o.value === value);
   const [active, setActive] = useState(Math.max(0, selectedIndex));
   const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const listId = useId();
   const close = useRef(() => setOpen(false)).current;
-  useOutside(open, rootRef, close);
+  const insideRefs = useRef([rootRef, listRef]).current;
+  useOutside(open, insideRefs, close);
 
   const pick = (next: T) => {
     onChange(next);
@@ -194,7 +272,7 @@ export function Dropdown<T extends string>({
         </span>
       </button>
       {open && (
-        <div className={styles.popover}>
+        <FloatingList anchorRef={rootRef} listRef={listRef}>
           <OptionList
             id={listId}
             options={options}
@@ -203,7 +281,7 @@ export function Dropdown<T extends string>({
             onPick={pick}
             onHover={setActive}
           />
-        </div>
+        </FloatingList>
       )}
     </div>
   );
@@ -233,9 +311,11 @@ export function Combobox({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const listId = useId();
   const close = useRef(() => setOpen(false)).current;
-  useOutside(open, rootRef, close);
+  const insideRefs = useRef([rootRef, listRef]).current;
+  useOutside(open, insideRefs, close);
 
   const query = value.trim().toLowerCase();
   const matches = options.filter(o => {
@@ -309,7 +389,7 @@ export function Combobox({
         </span>
       )}
       {shown && (
-        <div className={styles.popover}>
+        <FloatingList anchorRef={rootRef} listRef={listRef}>
           <OptionList
             id={listId}
             options={matches}
@@ -321,7 +401,7 @@ export function Combobox({
             }}
             onHover={setActive}
           />
-        </div>
+        </FloatingList>
       )}
     </div>
   );

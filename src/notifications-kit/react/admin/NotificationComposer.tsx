@@ -20,6 +20,7 @@ import { formatDateTime } from '../format';
 import { plural } from '../messages';
 import { useKitPreview } from '../preview';
 import { Button, StateBlock, cx } from '../primitives';
+import { ActionBar } from './ActionBar';
 import styles from './admin.module.css';
 import { DeliveryTable } from './DeliveryLog';
 import { Combobox, Dropdown } from './Dropdown';
@@ -104,6 +105,11 @@ export interface NotificationComposerProps {
   /** Show the sent request in the delivery log (e.g. switch tabs). */
   onOpenDeliveries?: (requestId: string) => void;
   onSent?: (response: NotificationRequestResponse) => void;
+  /**
+   * Where to render the bottom bar (summary, preview, send): the host's
+   * footer slot. Without it the bar sticks to the bottom of the page scroll.
+   */
+  actionsContainer?: HTMLElement | null;
 }
 
 /**
@@ -115,6 +121,7 @@ function NotificationComposerBody({
   defaultCategory,
   onOpenDeliveries,
   onSent,
+  actionsContainer,
 }: NotificationComposerProps) {
   const { t, admin, locale } = useNotificationsContext();
   const freeformKey = admin.freeformTemplateKey;
@@ -469,7 +476,7 @@ function NotificationComposerBody({
         )}
       </form>
 
-      <div className={styles.actionBar}>
+      <ActionBar container={actionsContainer}>
         <span className={styles.actionSummary}>
           {showErrors && !valid ? (
             <span className={styles.fieldError}>{t('compose.fixErrors')}</span>
@@ -508,7 +515,7 @@ function NotificationComposerBody({
               ? t('compose.submitScheduled')
               : t('compose.submit')}
         </Button>
-      </div>
+      </ActionBar>
 
       <PreviewDialog
         open={dialog !== null}
