@@ -69,9 +69,12 @@ function useModeSwitch(
 export function MessageTabs({
   value,
   onChange,
+  editing,
 }: {
   value: MessageContent;
   onChange: (next: MessageContent) => void;
+  /** In the editor of a published announcement: "Own text / Template". */
+  editing?: boolean;
 }) {
   const { t, admin } = useNotificationsContext();
   const switchMode = useModeSwitch(value, onChange);
@@ -81,8 +84,18 @@ export function MessageTabs({
       label={t('announce.tabs')}
       value={value.mode}
       items={[
-        { value: 'freeform', label: t('announce.tab.freeform') },
-        { value: 'template', label: t('announce.tab.template') },
+        {
+          value: 'freeform',
+          label: editing
+            ? t('message.mode.freeform')
+            : t('announce.tab.freeform'),
+        },
+        {
+          value: 'template',
+          label: editing
+            ? t('message.mode.template')
+            : t('announce.tab.template'),
+        },
       ]}
       onChange={switchMode}
     />

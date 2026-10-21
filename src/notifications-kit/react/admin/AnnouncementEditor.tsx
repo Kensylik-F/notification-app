@@ -21,7 +21,7 @@ import type {
 } from '../../core';
 import { MessageBody } from '../content';
 import { useNotificationsContext } from '../context';
-import { Button, Spinner } from '../primitives';
+import { Button, Spinner, cx } from '../primitives';
 import styles from './admin.module.css';
 import { PreviewLocaleSwitch, usePreviewLocale } from './announceShared';
 import { ErrorNotice } from './errors';
@@ -32,6 +32,19 @@ import { useFetchPreview, usePreviewRequest } from './Preview';
 import { readPublished, rememberCorrection } from './publishedJournal';
 
 const DAY_MS = 86_400_000;
+
+const escapeHtml = (text: string) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** Plain text as editor HTML: paragraphs by blank lines, line breaks kept. */
+export function textToHtml(text: string): string {
+  return text
+    .trim()
+    .split(/\n\s*\n/)
+    .filter(Boolean)
+    .map(part => `<p>${escapeHtml(part).replace(/\n/g, '<br>')}</p>`)
+    .join('');
+}
 
 /** What an edit starts from. */
 export interface EditTarget {
@@ -132,7 +145,8 @@ export function useEditTarget(
         ? {
             mode: 'freeform',
             subject: entry.subject ?? '',
-            bodyHtml: entry.bodyHtml ?? '',
+            // A text-only announcement has no HTML: the editor gets its text.
+            bodyHtml: entry.bodyHtml ?? textToHtml(entry.bodyText ?? ''),
             bodyText: entry.bodyText ?? '',
           }
         : EMPTY_FREEFORM,
@@ -190,7 +204,7 @@ export function AnnouncementEditor({
       )}
       {!target.originKnown && (
         <>
-          <MessageTabs value={content} onChange={setContent} />
+          <MessageTabs value={content} onChange={setContent} editing />
           {content.mode === 'freeform' && !target.unavailable && (
             <p className={styles.muted}>{t('edit.originUnknown')}</p>
           )}
@@ -229,7 +243,7 @@ export function AnnouncementEditor({
       )}
       {correct.isError && <ErrorNotice error={correct.error} t={t} />}
       {preview.error !== null && <ErrorNotice error={preview.error} t={t} />}
-      <div className={styles.inlineRow}>
+      <div className={cx(styles.inlineRow, styles.editorActions)}>
         <Button variant='primary' disabled={correct.isPending} onClick={save}>
           {correct.isPending ? t('edit.saving') : t('edit.save')}
         </Button>

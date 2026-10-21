@@ -2,7 +2,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { PublishAnnouncementRequest } from '../src/notifications-kit/core';
-import { requestToContent } from '../src/notifications-kit/react/admin/AnnouncementEditor';
+import {
+  requestToContent,
+  textToHtml,
+} from '../src/notifications-kit/react/admin/AnnouncementEditor';
 import {
   readPublished,
   rememberCorrection,
@@ -47,6 +50,15 @@ describe('requestToContent', () => {
         { name: 'version', value: '2.6' },
       ],
     });
+  });
+});
+
+describe('textToHtml', () => {
+  it('makes paragraphs and line breaks, escaping markup', () => {
+    expect(textToHtml('Первая строка\nвторая\n\nНовый <абзац> & всё')).toBe(
+      '<p>Первая строка<br>вторая</p><p>Новый &lt;абзац&gt; &amp; всё</p>'
+    );
+    expect(textToHtml('   ')).toBe('');
   });
 });
 

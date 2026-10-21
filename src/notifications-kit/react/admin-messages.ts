@@ -374,7 +374,7 @@ export const ADMIN_MESSAGES_RU = {
   'edit.unavailable':
     'Текст этого объявления сейчас недоступен: окно показа закончилось или объявление адресовано не вам. Задайте текст заново.',
   'edit.originUnknown':
-    'Если объявление создано из шаблона, откройте «Создать из шаблона» и задайте параметры заново.',
+    'Если объявление создано из шаблона, откройте вкладку «Шаблон сервиса» и задайте параметры заново.',
   'announcement.edit': 'Изменить',
 } as const;
 
@@ -754,6 +754,6 @@ export const ADMIN_MESSAGES_EN: Record<keyof typeof ADMIN_MESSAGES_RU, string> =
     'edit.unavailable':
       'This announcement text is not available now: its window has ended or it is not addressed to you. Write the text again.',
     'edit.originUnknown':
-      'If the announcement was made from a template, open "From a template" and set its parameters again.',
+      'If the announcement was made from a template, open the "Service template" tab and set its parameters again.',
     'announcement.edit': 'Edit',
   };

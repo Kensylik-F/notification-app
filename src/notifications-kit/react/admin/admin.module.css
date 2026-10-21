@@ -2088,6 +2088,19 @@
   padding-top: 0;
 }
 
+/* The buttons stay in view while the dialog scrolls. */
+.editDialog .editorActions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: var(--nk-space-sm, 8px) 0 2px;
+  background-color: var(--nk-color-bar-base, Canvas);
+  background-image: linear-gradient(
+    var(--nk-color-surface-raised, #ffffff),
+    var(--nk-color-surface-raised, #ffffff)
+  );
+}
+
 .published {
   max-width: 980px;
 }

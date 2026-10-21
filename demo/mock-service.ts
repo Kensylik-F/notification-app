@@ -289,6 +289,17 @@ export function createMockService(options: { latencyMs?: number } = {}) {
       const found = announcements.find(a => a.id === id);
       if (found) Object.assign(found, { subject, bodyText, bodyHtml });
     },
+    lookup: id => {
+      const found = announcements.find(a => a.id === id);
+      return found
+        ? {
+            category: String(found.category),
+            visibleFrom: found.visibleFrom,
+            visibleUntil: found.visibleUntil,
+            publishedAt: String(found.publishedAt),
+          }
+        : undefined;
+    },
   });
 
   const visible = (a: StoredAnnouncement) => {

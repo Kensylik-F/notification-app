@@ -353,6 +353,15 @@ export function createAdminMock(options: {
     bodyText: string,
     bodyHtml: string | null
   ) => void;
+  /** An announcement the service already had (the demo's seed). */
+  lookup?: (id: string) =>
+    | {
+        category: string;
+        visibleFrom: string;
+        visibleUntil: string;
+        publishedAt: string;
+      }
+    | undefined;
 }) {
   const deliveries: Delivery[] = [];
   const requests: RequestRecord[] = [];
@@ -811,6 +820,19 @@ export function createAdminMock(options: {
     }
 
     if ((m = route.match(/^POST \/announcements\/([^/]+)\/corrections$/))) {
+      const seeded = published.has(m[1]!) ? undefined : options.lookup?.(m[1]!);
+      if (seeded) {
+        published.set(m[1]!, {
+          id: m[1]!,
+          ...seeded,
+          categoryClass: ANNOUNCEMENT_CLASS[seeded.category] ?? 'MARKETING',
+          audienceType: 'EVERYONE',
+          audienceValue: null,
+          templateKey: 'custom-message',
+          publishedBy: 'demo.moderator',
+          emailRunId: null,
+        });
+      }
       const admin = published.get(m[1]!);
       if (!admin)
         return problem(
