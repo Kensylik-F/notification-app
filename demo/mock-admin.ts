@@ -820,8 +820,10 @@ export function createAdminMock(options: {
           'Объявление не найдено.'
         );
       try {
+        // As the service: a correction re-renders the announcement's own
+        // template; only the variables of the request are read.
         const content = render(
-          String(body.templateKey),
+          String(admin.templateKey),
           'IN_APP',
           'ru',
           (body.variables ?? {}) as Record<string, unknown>
@@ -843,7 +845,6 @@ export function createAdminMock(options: {
         }
         throw error;
       }
-      admin.templateKey = body.templateKey;
       return json(200, admin);
     }
 

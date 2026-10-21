@@ -129,7 +129,20 @@ export {
 } from './admin/AnnouncementPublisher';
 export { EmailRunProgress } from './admin/AnnouncementPublisher';
 export { RichTextEditor } from './admin/RichTextEditor';
-export { MessageFields, MessageModeSwitch } from './admin/MessageFields';
+export {
+  MessageFields,
+  MessageModeSwitch,
+  MessageTabs,
+} from './admin/MessageFields';
+export {
+  EditDialog as AnnouncementEditDialog,
+  PublishedAnnouncements,
+  type PublishedAnnouncementsProps,
+} from './admin/PublishedAnnouncements';
+export {
+  AnnouncementEditor,
+  type EditTarget as AnnouncementEditTarget,
+} from './admin/AnnouncementEditor';
 export { Combobox, Dropdown, type DropdownOption } from './admin/Dropdown';
 export { htmlToText, sanitizeHtml } from './admin/richtext';
 export {

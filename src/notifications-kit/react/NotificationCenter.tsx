@@ -16,6 +16,7 @@ import {
   useInboxList,
   useUnreadCount,
 } from './hooks';
+import { EditDialog } from './admin/PublishedAnnouncements';
 import { InboxItemView } from './InboxItemView';
 import { InboxActions, InboxList } from './InboxPanel';
 import { AnnouncementRow } from './InboxRow';
@@ -46,6 +47,13 @@ export interface NotificationCenterProps {
   onUnreadOnlyChange?: (value: boolean) => void;
   /** Adds "Open on a separate page" to an opened notification. */
   onOpenItem?: (entry: InboxEntry) => void;
+  /**
+   * "Edit" on an opened announcement, for those who may publish
+   * (`features.publishing` and `admin.permissions.announce`). Without this
+   * prop the editor opens in a dialog right here; with it the host decides
+   * (e.g. goes to the announcements page).
+   */
+  onEditAnnouncement?: (entry: AnnouncementEntry) => void;
   /**
    * A heading row with "Mark all read" and "Dismiss all" on its right. Leave
    * it out when the page header is the host's: put `<InboxActions />` there.
@@ -101,6 +109,7 @@ export function NotificationCenter({
   unreadOnly: unreadProp,
   onUnreadOnlyChange,
   onOpenItem,
+  onEditAnnouncement,
   title,
   pageSize,
   className,
@@ -199,6 +208,7 @@ export function NotificationCenter({
               showList={showList}
               showReader={showReader}
               compact={compact}
+              onEdit={onEditAnnouncement}
             />
           )}
         </div>
@@ -308,14 +318,21 @@ function AnnouncementSide({
   showList,
   showReader,
   compact,
+  onEdit,
 }: {
   selected: string | null;
   onSelect: (id: string | null) => void;
   showList: boolean;
   showReader: boolean;
   compact: boolean;
+  onEdit?: (entry: AnnouncementEntry) => void;
 }) {
-  const { t } = useNotificationsContext();
+  const { t, features, admin } = useNotificationsContext();
+  const [editing, setEditing] = useState<AnnouncementEntry | null>(null);
+  const canEdit = features.publishing && admin.permissions.announce;
+  const edit = canEdit
+    ? (entry: AnnouncementEntry) => (onEdit ? onEdit(entry) : setEditing(entry))
+    : undefined;
   const active = useAnnouncements();
   const closed = useDismissedAnnouncements();
   const dismiss = useDismissAnnouncement();
@@ -415,9 +432,10 @@ function AnnouncementSide({
                 <AnnouncementReader
                   entry={picked.entry}
                   onClose={() => close(picked.entry)}
+                  onEdit={edit}
                 />
               ) : (
-                <ClosedReader record={picked.record} />
+                <ClosedReader record={picked.record} onEdit={edit} />
               )}
             </div>
           ) : (
@@ -429,6 +447,14 @@ function AnnouncementSide({
           )}
         </div>
       )}
+      {editing && (
+        <EditDialog
+          id={editing.id}
+          hint={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => setEditing(null)}
+        />
+      )}
     </>
   );
 }
@@ -438,11 +464,13 @@ function AnnouncementReader({
   closedAt,
   note,
   onClose,
+  onEdit,
 }: {
   entry: AnnouncementEntry;
   closedAt?: string | null;
   note?: string;
   onClose?: () => void;
+  onEdit?: (entry: AnnouncementEntry) => void;
 }) {
   const { t, locale, admin } = useNotificationsContext();
   const now = Date.now();
@@ -471,11 +499,18 @@ function AnnouncementReader({
             {label && <Chip>{label}</Chip>}
           </div>
         </div>
-        {onClose && (
+        {(onClose || onEdit) && (
           <div className={styles.readerActions}>
-            <Button icon='close' onClick={onClose}>
-              {t('announcement.dismiss')}
-            </Button>
+            {onEdit && (
+              <Button icon='edit' onClick={() => onEdit(entry)}>
+                {t('announcement.edit')}
+              </Button>
+            )}
+            {onClose && (
+              <Button icon='close' onClick={onClose}>
+                {t('announcement.dismiss')}
+              </Button>
+            )}
           </div>
         )}
       </header>
@@ -487,7 +522,13 @@ function AnnouncementReader({
 
 /** Refreshes from the service while it still has the announcement; after
  *  the window ends (404) the copy kept in the browser is shown. */
-function ClosedReader({ record }: { record: DismissedAnnouncement }) {
+function ClosedReader({
+  record,
+  onEdit,
+}: {
+  record: DismissedAnnouncement;
+  onEdit?: (entry: AnnouncementEntry) => void;
+}) {
   const { t } = useNotificationsContext();
   const live = useAnnouncement(record.entry.id);
   const gone = isNotificationsError(live.error) && live.error.status === 404;
@@ -496,6 +537,7 @@ function ClosedReader({ record }: { record: DismissedAnnouncement }) {
       entry={live.data ?? record.entry}
       closedAt={record.dismissedAt}
       note={gone ? t('feed.expired') : undefined}
+      onEdit={onEdit}
     />
   );
 }

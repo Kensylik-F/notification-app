@@ -85,14 +85,20 @@ export interface AdminOptions {
    */
   freeformTemplateKey?: string;
   /**
-   * "Own text / Service template" in the forms. The service publishes no
-   * list of its templates or their variables, so writing a template key by
-   * hand is for those who know them. Default: `false` - own text only
-   * (needs `freeformTemplateKey`).
+   * "Own text / Service template" in `NotificationComposer`. The service
+   * publishes no list of its templates or their variables, so writing a
+   * template key by hand is for those who know them. Default: `false` -
+   * own text only. `AnnouncementPublisher` always has both tabs.
    */
   serviceTemplates?: boolean;
   /** The service's `announcements.max-visibility-window`. Default: 90. */
   maxVisibilityDays?: number;
+  /**
+   * Languages the service renders announcements in (its
+   * `supported-locales`). Publishing renders all of them; the form's switch
+   * picks the preview language. Default: `['ru', 'en']`.
+   */
+  locales?: readonly string[];
   /** Default: everything allowed, and the service decides. */
   permissions?: Partial<NotificationPermissions>;
 }
@@ -104,6 +110,7 @@ export interface ResolvedAdminOptions {
   freeformTemplateKey: string | undefined;
   serviceTemplates: boolean;
   maxVisibilityDays: number;
+  locales: readonly string[];
   permissions: NotificationPermissions;
 }
 
@@ -234,6 +241,7 @@ const NotificationsContext = createContext<NotificationsContextValue | null>(
 const noDescription = () => undefined;
 const ignore = () => undefined;
 const NONE: readonly never[] = [];
+const DEFAULT_LOCALES: readonly string[] = ['ru', 'en'];
 
 function resolveAdmin(admin: AdminOptions | undefined): ResolvedAdminOptions {
   const p = admin?.permissions ?? {};
@@ -244,6 +252,10 @@ function resolveAdmin(admin: AdminOptions | undefined): ResolvedAdminOptions {
     freeformTemplateKey: admin?.freeformTemplateKey?.trim() || undefined,
     serviceTemplates: admin?.serviceTemplates ?? false,
     maxVisibilityDays: admin?.maxVisibilityDays ?? DEFAULT_MAX_VISIBILITY_DAYS,
+    locales:
+      admin?.locales && admin.locales.length > 0
+        ? admin.locales.map(code => code.trim().toLowerCase()).filter(Boolean)
+        : DEFAULT_LOCALES,
     permissions: {
       send: p.send ?? true,
       preview: p.preview ?? true,

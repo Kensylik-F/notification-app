@@ -11,6 +11,7 @@ import {
   NotificationCenter,
   NotificationComposer,
   NotificationsProvider,
+  PublishedAnnouncements,
   Tabs,
   createNotificationsApi,
   notificationKeys,
@@ -148,6 +149,11 @@ function App() {
   // `?dock=1`: the forms' bottom bar goes to a footer slot under the
   // scrolling content, as a host's page shell would do.
   const dock = params.get('dock') === '1';
+  // The announcements page: the form and the published list, as the
+  // host's page tabs would do.
+  const [annTab, setAnnTab] = useState<'new' | 'published'>(() =>
+    params.get('ann') === 'published' ? 'published' : 'new'
+  );
   const [footerSlot, setFooterSlot] = useState<HTMLDivElement | null>(null);
   // Where a link inside a message led, for the demo (the host's router).
   const [route, setRoute] = useState<string | null>(null);
@@ -309,14 +315,24 @@ function App() {
                 {view === 'announce' && (
                   <>
                     <p className='crumbs'>Администрирование / Объявления</p>
-                    <h1 className='pageTitle'>Новое объявление</h1>
-                    <p className='pageNote'>
-                      Видно всем выбранным пользователям в кабинете до даты
-                      окончания.
-                    </p>
-                    <AnnouncementPublisher
-                      actionsContainer={dock ? footerSlot : undefined}
+                    <h1 className='pageTitle'>Объявления</h1>
+                    <Tabs
+                      label='Объявления'
+                      value={annTab}
+                      items={[
+                        { value: 'new', label: 'Новое объявление' },
+                        { value: 'published', label: 'Опубликованные' },
+                      ]}
+                      onChange={setAnnTab}
                     />
+                    <div style={{ height: 16 }} />
+                    {annTab === 'new' ? (
+                      <AnnouncementPublisher
+                        actionsContainer={dock ? footerSlot : undefined}
+                      />
+                    ) : (
+                      <PublishedAnnouncements />
+                    )}
                   </>
                 )}
               </main>

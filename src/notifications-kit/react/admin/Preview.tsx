@@ -58,7 +58,10 @@ const previewKey = (request: RenderPreviewRequest) =>
 
 /** The request the service renders for `channel`, or `null` when the form
  *  has nothing renderable yet. */
-export function usePreviewRequest(content: MessageContent) {
+export function usePreviewRequest(
+  content: MessageContent,
+  previewLocale?: string
+) {
   const { admin, locale } = useNotificationsContext();
   return (channel: Channel): RenderPreviewRequest | null => {
     const { templateKey, variables } = contentToTemplate(
@@ -69,7 +72,7 @@ export function usePreviewRequest(content: MessageContent) {
     return {
       templateKey,
       channel,
-      locale: locale.slice(0, 2).toLowerCase(),
+      locale: previewLocale ?? locale.slice(0, 2).toLowerCase(),
       variables,
     };
   };

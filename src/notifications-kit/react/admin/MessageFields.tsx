@@ -4,7 +4,7 @@ import type { ContentErrors, MessageContent, VariablePair } from '../../core';
 import { MAX_SUBJECT_LENGTH } from '../../core';
 import { useNotificationsContext } from '../context';
 import type { Translate } from '../messages';
-import { Button, IconButton } from '../primitives';
+import { Button, IconButton, Tabs } from '../primitives';
 import styles from './admin.module.css';
 import { Field, Notice, Segmented, TextInput } from './forms';
 import { htmlToText } from './richtext';
@@ -33,6 +33,9 @@ interface MessageFieldsProps {
   value: MessageContent;
   onChange: (next: MessageContent) => void;
   errors: ContentErrors;
+  /** The template key cannot change (a correction re-renders the
+   *  announcement's own template). */
+  keyLocked?: boolean;
 }
 
 /**
@@ -41,6 +44,51 @@ interface MessageFieldsProps {
  * Renders nothing without a free-form template or with `serviceTemplates`
  * off (the default).
  */
+function useModeSwitch(
+  value: MessageContent,
+  onChange: (next: MessageContent) => void
+) {
+  const other = useRef<Partial<Record<MessageContent['mode'], MessageContent>>>(
+    {}
+  );
+  return (mode: MessageContent['mode']) => {
+    if (mode === value.mode) return;
+    other.current[value.mode] = value;
+    onChange(
+      other.current[mode] ??
+        (mode === 'freeform' ? EMPTY_FREEFORM : EMPTY_TEMPLATE)
+    );
+  };
+}
+
+/**
+ * "Create your own / Create from a template" - the announcement form's top
+ * tabs. Remembers what was typed on the other tab. Without a free-form
+ * template only the template tab exists, and no tabs are drawn.
+ */
+export function MessageTabs({
+  value,
+  onChange,
+}: {
+  value: MessageContent;
+  onChange: (next: MessageContent) => void;
+}) {
+  const { t, admin } = useNotificationsContext();
+  const switchMode = useModeSwitch(value, onChange);
+  if (!admin.freeformTemplateKey) return null;
+  return (
+    <Tabs
+      label={t('announce.tabs')}
+      value={value.mode}
+      items={[
+        { value: 'freeform', label: t('announce.tab.freeform') },
+        { value: 'template', label: t('announce.tab.template') },
+      ]}
+      onChange={switchMode}
+    />
+  );
+}
+
 export function MessageModeSwitch({
   value,
   onChange,
@@ -49,18 +97,8 @@ export function MessageModeSwitch({
   onChange: (next: MessageContent) => void;
 }) {
   const { t, admin } = useNotificationsContext();
-  const other = useRef<Partial<Record<MessageContent['mode'], MessageContent>>>(
-    {}
-  );
+  const switchMode = useModeSwitch(value, onChange);
   if (!admin.freeformTemplateKey || !admin.serviceTemplates) return null;
-  const switchMode = (mode: MessageContent['mode']) => {
-    if (mode === value.mode) return;
-    other.current[value.mode] = value;
-    onChange(
-      other.current[mode] ??
-        (mode === 'freeform' ? EMPTY_FREEFORM : EMPTY_TEMPLATE)
-    );
-  };
   return (
     <Segmented
       name='nk-message-mode'
@@ -76,7 +114,12 @@ export function MessageModeSwitch({
 }
 
 /** What the message says: text in the editor, or a service template by key. */
-export function MessageFields({ value, onChange, errors }: MessageFieldsProps) {
+export function MessageFields({
+  value,
+  onChange,
+  errors,
+  keyLocked,
+}: MessageFieldsProps) {
   const { t, admin } = useNotificationsContext();
   const canWrite = Boolean(admin.freeformTemplateKey);
   return (
@@ -97,6 +140,7 @@ export function MessageFields({ value, onChange, errors }: MessageFieldsProps) {
           value={value}
           onChange={onChange}
           errors={errors}
+          keyLocked={keyLocked}
           t={t}
         />
       )}
@@ -172,11 +216,13 @@ function TemplateKeyFields({
   value,
   onChange,
   errors,
+  keyLocked,
   t,
 }: {
   value: Extract<MessageContent, { mode: 'template' }>;
   onChange: (next: MessageContent) => void;
   errors: ContentErrors;
+  keyLocked?: boolean;
   t: Translate;
 }) {
   const edit = (index: number, patch: Partial<VariablePair>) =>
@@ -206,7 +252,7 @@ function TemplateKeyFields({
       <Field
         label={t('template.key')}
         required
-        hint={t('template.keyHint')}
+        hint={keyLocked ? t('template.keyLocked') : t('template.keyHint')}
         error={keyError}
       >
         {({ id, describedBy, invalid }) => (
@@ -215,9 +261,11 @@ function TemplateKeyFields({
             aria-describedby={describedBy}
             invalid={invalid}
             value={value.templateKey}
+            readOnly={keyLocked}
+            disabled={keyLocked}
             spellCheck={false}
             autoComplete='off'
-            placeholder='order.status-changed'
+            placeholder='platform-release'
             onChange={event =>
               onChange({ ...value, templateKey: event.target.value })
             }

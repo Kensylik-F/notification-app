@@ -247,16 +247,14 @@ if (run('announce')) {
   await page.locator('label').filter({ hasText: 'По роли' }).click();
   await page.getByRole('combobox', { name: 'Роль' }).click();
   await page.getByRole('option', { name: 'Модератор' }).click();
-  await page.getByLabel('Категория').fill('platform-release');
-  await page.keyboard.press('Escape');
+  await page.getByRole('radio', { name: /Справа сверху/ }).click();
   await wait(page, 300);
   await shot(page, '41-announce-filled');
   await page.getByRole('button', { name: 'Предпросмотр' }).click();
   await wait(page, 1200);
   await shot(page, '42-announce-preview-deck');
   await page.getByRole('button', { name: 'Выйти из предпросмотра' }).click();
-  await page.getByLabel('Категория').fill('platform-incident');
-  await page.keyboard.press('Escape');
+  await page.getByRole('radio', { name: /Окном по центру/ }).click();
   await page.getByRole('button', { name: 'Предпросмотр' }).click();
   await wait(page, 1200);
   await shot(page, '43-announce-preview-modal');
@@ -272,6 +270,31 @@ if (run('announce')) {
   await shot(page, '45-announce-published-modal');
   await acknowledge(page);
   await shot(page, '46-announce-result');
+  await page.getByRole('tab', { name: 'Опубликованные' }).click();
+  await wait(page, 600);
+  await shot(page, '47-announce-published');
+  await page.getByRole('button', { name: 'Изменить' }).first().click();
+  await wait(page, 600);
+  await shot(page, '48-announce-edit');
+  await page.context().close();
+}
+
+// --------------------------------------------------- announce: template
+if (run('announce')) {
+  const page = await open('?view=announce');
+  await acknowledge(page);
+  await page.getByRole('tab', { name: 'Создать из шаблона' }).click();
+  await page.getByRole('radio', { name: /Справа сверху/ }).click();
+  await page.getByLabel('Название шаблона').fill('platform-release');
+  const keys = page.getByRole('textbox', { name: 'Ключ' });
+  const values = page.getByRole('textbox', { name: 'Значение' });
+  await keys.nth(0).fill('productName');
+  await values.nth(0).fill('OneCheck');
+  await page.getByRole('button', { name: 'Добавить параметр' }).click();
+  await keys.nth(1).fill('version');
+  await values.nth(1).fill('2.6');
+  await wait(page, 300);
+  await shot(page, '49-announce-template');
   await page.context().close();
 }
 

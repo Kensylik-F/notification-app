@@ -2,16 +2,13 @@ import { useRef, useState } from 'react';
 
 import {
   buildPublishRequest,
-  contentToTemplate,
   isTerminal,
   progressRatio,
-  validateContent,
   validatePublish,
 } from '../../core';
 import type {
   AnnouncementAdmin,
   AudienceType,
-  CategoryClass,
   MessageContent,
   OperationResponse,
   PublishAnnouncementRequest,
@@ -19,7 +16,6 @@ import type {
 } from '../../core';
 import { useNotificationsContext } from '../context';
 import { formatDateTime, formatDay } from '../format';
-import type { AnnouncementPresentation } from '../presentation';
 import { useKitPreview } from '../preview';
 import {
   Button,
@@ -32,7 +28,16 @@ import {
 } from '../primitives';
 import { ActionBar } from './ActionBar';
 import styles from './admin.module.css';
-import { Combobox, Dropdown } from './Dropdown';
+import { AnnouncementEditor, requestToContent } from './AnnouncementEditor';
+import {
+  PreviewLocaleSwitch,
+  ViewPicker,
+  useAnnouncementPreview,
+  useLabels,
+  usePresentationOf,
+  usePreviewLocale,
+} from './announceShared';
+import { Dropdown } from './Dropdown';
 import { ErrorNotice } from './errors';
 import {
   Field,
@@ -46,27 +51,15 @@ import {
 } from './forms';
 import {
   useCancelEmailRun,
-  useCorrectAnnouncement,
   useEmailRun,
   usePublishAnnouncement,
 } from './hooks';
-import {
-  MessageFields,
-  MessageModeSwitch,
-  initialContent,
-} from './MessageFields';
-import {
-  PreviewButton,
-  PreviewStrip,
-  previewAnnouncementEntry,
-  useClearPreviewOnLeave,
-  useFetchPreview,
-  usePreviewRequest,
-} from './Preview';
+import { MessageFields, MessageTabs, initialContent } from './MessageFields';
+import { PreviewButton, PreviewStrip, useClearPreviewOnLeave } from './Preview';
+import { rememberPublished } from './publishedJournal';
 
 const DEFAULT_WINDOW_DAYS = 7;
 /** The views, most prominent first; each stands for a category class. */
-const CLASSES: CategoryClass[] = ['TRANSACTIONAL', 'PLATFORM', 'MARKETING'];
 const CONTENT_KEYS = ['subject', 'body', 'templateKey', 'variables'] as const;
 
 interface PublisherState {
@@ -104,156 +97,6 @@ function toDraft(state: PublisherState): PublishDraft {
   };
 }
 
-function useLabels() {
-  const { admin, t } = useNotificationsContext();
-  return {
-    category: (code: string) =>
-      admin.categories.find(c => c.code === code)?.label ?? code,
-    role: (code: string | null | undefined) =>
-      admin.roles.find(r => r.code === code)?.label ?? code ?? '',
-    audience: (type: AudienceType | null | undefined, value?: string | null) =>
-      type === 'ROLE'
-        ? `${t('announce.audience.ROLE')}: ${
-            admin.roles.find(r => r.code === value)?.label ?? value ?? ''
-          }`
-        : t('announce.audience.EVERYONE'),
-  };
-}
-
-/** How the host shows an announcement of this category: by the class the
- *  host knows for it (`admin.categories`), else as one without a class. */
-function usePresentationOf() {
-  const { resolvePresentation, admin } = useNotificationsContext();
-  const classOf = (category: string) =>
-    admin.categories.find(c => c.code === category.trim())?.categoryClass ??
-    null;
-  const presentationOf = (category: string): AnnouncementPresentation =>
-    resolvePresentation({
-      id: 'probe',
-      category: category.trim() || null,
-      categoryClass: classOf(category),
-      locale: null,
-      subject: null,
-      bodyText: null,
-      bodyHtml: null,
-      publishedAt: null,
-      visibleFrom: null,
-      visibleUntil: null,
-      dismissed: false,
-    });
-  presentationOf.known = (category: string) => classOf(category) !== null;
-  presentationOf.classOf = classOf;
-  /** How the cabinet shows an announcement of this class. */
-  presentationOf.ofClass = (categoryClass: CategoryClass) =>
-    resolvePresentation({
-      id: 'probe',
-      category: null,
-      categoryClass,
-      locale: null,
-      subject: null,
-      bodyText: null,
-      bodyHtml: null,
-      publishedAt: null,
-      visibleFrom: null,
-      visibleUntil: null,
-      dismissed: false,
-    });
-  return presentationOf;
-}
-
-/**
- * Plays an announcement out on this page, where and how it would show:
- * the service renders it for the in-app channel, the kit puts it among the
- * overlays (the deck, a dialog or a strip) marked as a preview.
- */
-function useAnnouncementPreview(content: MessageContent) {
-  const [, setKitPreview] = useKitPreview();
-  const fetchPreview = useFetchPreview();
-  const requestFor = usePreviewRequest(content);
-  const presentationOf = usePresentationOf();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<unknown>(null);
-  const [none, setNone] = useState(false);
-
-  const run = async (category: string, visibleUntil: string | null) => {
-    const request = requestFor('IN_APP');
-    if (!request) return;
-    setBusy(true);
-    setError(null);
-    setNone(false);
-    try {
-      const result = await fetchPreview(request);
-      const until = visibleUntil ? new Date(visibleUntil) : null;
-      const entry = previewAnnouncementEntry(result, {
-        category: category.trim() || null,
-        categoryClass: presentationOf.classOf(category),
-        visibleUntil:
-          until && !Number.isNaN(until.getTime()) ? until.toISOString() : null,
-      });
-      const presentation = presentationOf(category);
-      if (presentation === 'none') setNone(true);
-      else setKitPreview({ kind: 'announcement', entry, presentation });
-    } catch (caught) {
-      setError(caught);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return {
-    run,
-    busy,
-    error,
-    none,
-    clear: () => {
-      setError(null);
-      setNone(false);
-    },
-  };
-}
-
-const PRESENTATION_ICON: Record<
-  Exclude<AnnouncementPresentation, 'none'>,
-  JSX.Element
-> = {
-  corner: (
-    <svg
-      width='28'
-      height='20'
-      viewBox='0 0 28 20'
-      fill='none'
-      aria-hidden='true'
-    >
-      <rect x='.5' y='.5' width='27' height='19' rx='3' stroke='currentColor' />
-      <rect x='15' y='3' width='10' height='6' rx='1.5' fill='currentColor' />
-    </svg>
-  ),
-  modal: (
-    <svg
-      width='28'
-      height='20'
-      viewBox='0 0 28 20'
-      fill='none'
-      aria-hidden='true'
-    >
-      <rect x='.5' y='.5' width='27' height='19' rx='3' stroke='currentColor' />
-      <rect x='8' y='5' width='12' height='10' rx='1.5' fill='currentColor' />
-    </svg>
-  ),
-  toast: (
-    <svg
-      width='28'
-      height='20'
-      viewBox='0 0 28 20'
-      fill='none'
-      aria-hidden='true'
-    >
-      <rect x='.5' y='.5' width='27' height='19' rx='3' stroke='currentColor' />
-      <rect x='5' y='3' width='18' height='4' rx='1.5' fill='currentColor' />
-    </svg>
-  ),
-};
-
 export interface AnnouncementPublisherProps {
   onPublished?: (announcement: AnnouncementAdmin) => void;
   /**
@@ -268,8 +111,9 @@ function AnnouncementPublisherBody({
   onPublished,
   actionsContainer,
 }: AnnouncementPublisherProps) {
-  const { t, admin, locale } = useNotificationsContext();
+  const { t, admin, locale, storageScope } = useNotificationsContext();
   const freeformKey = admin.freeformTemplateKey;
+  const [previewLocale, setPreviewLocale] = usePreviewLocale();
   const [state, setState] = useState<PublisherState>(() =>
     initialState(freeformKey)
   );
@@ -284,7 +128,7 @@ function AnnouncementPublisherBody({
   const labels = useLabels();
   const presentationOf = usePresentationOf();
   const [kitPreview, setKitPreview] = useKitPreview();
-  const preview = useAnnouncementPreview(state.content);
+  const preview = useAnnouncementPreview(state.content, previewLocale);
   const confirmTitle = useDomId('nk-confirm');
   const publishRef = useRef<HTMLButtonElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -334,10 +178,6 @@ function AnnouncementPublisherBody({
   const update = (patch: Partial<PublisherState>) =>
     setState(current => ({ ...current, ...patch }));
   const days = admin.maxVisibilityDays;
-  const announcementCategories = admin.categories.filter(c => c.announcement);
-  /** The category a click on a view picks: the first of that class. */
-  const categoryOfClass = (cls: CategoryClass) =>
-    announcementCategories.find(c => c.categoryClass === cls)?.code;
   const presentation = presentationOf(state.category);
   const classKnown = presentationOf.known(state.category);
 
@@ -357,6 +197,7 @@ function AnnouncementPublisherBody({
         setConfirming(false);
         setKitPreview(null);
         setPublished({ announcement, request });
+        rememberPublished(storageScope, announcement, request);
         onPublished?.(announcement);
       },
       onError: () => setConfirming(false),
@@ -390,6 +231,10 @@ function AnnouncementPublisherBody({
           {t('preview.strip.notPublished')}
         </PreviewStrip>
       )}
+      <MessageTabs
+        value={state.content}
+        onChange={content => update({ content })}
+      />
       <form
         className={styles.form}
         noValidate
@@ -397,23 +242,12 @@ function AnnouncementPublisherBody({
           event.preventDefault();
         }}
       >
-        <FormSection
-          title={t('compose.section.message')}
-          aside={
-            <MessageModeSwitch
-              value={state.content}
-              onChange={content => update({ content })}
-            />
-          }
-        >
-          <MessageFields
-            value={state.content}
-            onChange={content => update({ content })}
-            errors={visible}
-          />
-        </FormSection>
-
         <FormSection title={t('announce.section.who')}>
+          <ViewPicker
+            category={state.category}
+            onChange={category => update({ category })}
+            error={visible.category ? t('announce.view.error') : undefined}
+          />
           <div className={styles.grid2}>
             <FieldSet legend={t('announce.audience')}>
               <Segmented
@@ -463,78 +297,22 @@ function AnnouncementPublisherBody({
               </Field>
             )}
           </div>
-          <FieldSet legend={t('announce.view')}>
-            <div
-              className={styles.views}
-              role='radiogroup'
-              aria-label={t('announce.view')}
-            >
-              {CLASSES.map(cls => {
-                const kind = presentationOf.ofClass(cls);
-                const category = categoryOfClass(cls);
-                const active = presentationOf.classOf(state.category) === cls;
-                return (
-                  <button
-                    key={cls}
-                    type='button'
-                    role='radio'
-                    aria-checked={active}
-                    className={styles.view}
-                    data-active={active || undefined}
-                    disabled={!category}
-                    title={category ? undefined : t('announce.view.noCategory')}
-                    onClick={() => category && update({ category })}
-                  >
-                    {kind !== 'none' && PRESENTATION_ICON[kind]}
-                    <span className={styles.viewText}>
-                      <span className={styles.viewTitle}>
-                        {kind === 'none'
-                          ? t('announce.presentation.noneShort')
-                          : t(`presentation.${kind}`)}
-                      </span>
-                      <span className={styles.viewClass}>
-                        {t(`categoryClass.${cls}`)}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </FieldSet>
-          <Field
-            label={t('announce.category')}
-            required
-            hint={
-              announcementCategories.length === 0
-                ? t('announce.category.hintNoList')
-                : state.category.trim() && !classKnown
-                  ? t('announce.presentation.unknown')
-                  : t('announce.view.hint')
-            }
-            error={visible.category ? t('announce.category.error') : undefined}
-          >
-            {({ id, describedBy, invalid }) => (
-              <Combobox
-                id={id}
-                describedBy={describedBy}
-                invalid={invalid}
-                value={state.category}
-                placeholder={
-                  announcementCategories.length > 0
-                    ? t('announce.category.placeholder')
-                    : t('compose.category.placeholder')
-                }
-                options={announcementCategories.map(c => ({
-                  value: c.code,
-                  label: c.label,
-                  hint: c.categoryClass
-                    ? `${c.code} · ${t(`categoryClass.${c.categoryClass}`)}`
-                    : c.code,
-                }))}
-                onChange={category => update({ category })}
-              />
-            )}
-          </Field>
+        </FormSection>
+
+        <FormSection
+          title={t('compose.section.message')}
+          aside={
+            <PreviewLocaleSwitch
+              value={previewLocale}
+              onChange={setPreviewLocale}
+            />
+          }
+        >
+          <MessageFields
+            value={state.content}
+            onChange={content => update({ content })}
+            errors={visible}
+          />
         </FormSection>
 
         <FormSection title={t('announce.section.when')}>
@@ -736,7 +514,7 @@ function PublishResult({
   request: PublishAnnouncementRequest;
   onNew: () => void;
 }) {
-  const { t, locale } = useNotificationsContext();
+  const { t, locale, admin } = useNotificationsContext();
   const labels = useLabels();
   const [current, setCurrent] = useState(request);
   const [correcting, setCorrecting] = useState(false);
@@ -798,9 +576,14 @@ function PublishResult({
           </div>
         )}
         {id && correcting && (
-          <CorrectionForm
-            id={id}
-            request={current}
+          <AnnouncementEditor
+            target={{
+              id,
+              base: current,
+              initial: requestToContent(current, admin.freeformTemplateKey),
+              originKnown: true,
+              unavailable: false,
+            }}
             onCancel={() => setCorrecting(false)}
             onDone={next => {
               setCurrent(next);
@@ -809,98 +592,6 @@ function PublishResult({
             }}
           />
         )}
-      </div>
-    </div>
-  );
-}
-
-function CorrectionForm({
-  id,
-  request,
-  onCancel,
-  onDone,
-}: {
-  id: string;
-  request: PublishAnnouncementRequest;
-  onCancel: () => void;
-  onDone: (request: PublishAnnouncementRequest) => void;
-}) {
-  const { t, admin } = useNotificationsContext();
-  const freeformKey = admin.freeformTemplateKey;
-  const correct = useCorrectAnnouncement();
-  const [content, setContent] = useState<MessageContent>(() => {
-    const vars = Object.fromEntries(
-      Object.entries(request.variables ?? {}).map(([k, v]) => [
-        k,
-        String(v ?? ''),
-      ])
-    );
-    if (freeformKey && request.templateKey === freeformKey) {
-      return {
-        mode: 'freeform',
-        subject: vars.subject ?? '',
-        bodyHtml: vars.bodyHtml ?? '',
-        bodyText: vars.bodyText ?? '',
-      };
-    }
-    return {
-      mode: 'template',
-      templateKey: request.templateKey,
-      variables: Object.entries(vars).map(([name, value]) => ({ name, value })),
-    };
-  });
-  const [showErrors, setShowErrors] = useState(false);
-  const errors = validateContent(content, freeformKey);
-  const preview = useAnnouncementPreview(content);
-
-  return (
-    <div className={styles.correction}>
-      <div className={styles.correctionHead}>
-        <span className={styles.sectionTitle}>{t('announce.correct')}</span>
-        <MessageModeSwitch value={content} onChange={setContent} />
-      </div>
-      <p className={styles.muted}>{t('announce.correct.hint')}</p>
-      <MessageFields
-        value={content}
-        onChange={setContent}
-        errors={showErrors ? errors : {}}
-      />
-      {correct.isError && <ErrorNotice error={correct.error} t={t} />}
-      {preview.error !== null && <ErrorNotice error={preview.error} t={t} />}
-      <div className={styles.inlineRow}>
-        <Button
-          variant='primary'
-          disabled={correct.isPending}
-          onClick={() => {
-            setShowErrors(true);
-            if (Object.keys(errors).length) return;
-            // The audience and the window go back unchanged.
-            const next = {
-              ...request,
-              ...contentToTemplate(content, freeformKey),
-            };
-            correct.mutate(
-              { id, request: next },
-              { onSuccess: () => onDone(next) }
-            );
-          }}
-        >
-          {t('announce.correct.save')}
-        </Button>
-        <Button
-          icon='eye'
-          disabled={preview.busy || !admin.permissions.preview}
-          onClick={() => {
-            setShowErrors(true);
-            if (Object.keys(errors).length) return;
-            void preview.run(request.category, request.visibleUntil);
-          }}
-        >
-          {t('preview.title')}
-        </Button>
-        <Button variant='ghost' disabled={correct.isPending} onClick={onCancel}>
-          {t('announce.correct.cancel')}
-        </Button>
       </div>
     </div>
   );
