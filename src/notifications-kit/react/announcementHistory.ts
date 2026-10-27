@@ -51,6 +51,24 @@ export function rememberDismissed(scope: string, entry: AnnouncementEntry) {
   }
 }
 
+/** The service's current text of a closed announcement (after a
+ *  correction): the closed list shows it, the closing time stays. */
+export function refreshDismissed(scope: string, entry: AnnouncementEntry) {
+  try {
+    const items = readDismissed(scope);
+    if (!items.some(item => item.entry.id === entry.id)) return;
+    const next = items.map(item =>
+      item.entry.id === entry.id
+        ? { ...item, entry: { ...entry, dismissed: true } }
+        : item
+    );
+    window.localStorage.setItem(keyFor(scope), JSON.stringify(next));
+    listeners.forEach(listener => listener());
+  } catch {
+    // Storage unavailable: nothing to refresh.
+  }
+}
+
 export function subscribeDismissed(listener: () => void): () => void {
   listeners.add(listener);
   const onStorage = (event: StorageEvent) => {

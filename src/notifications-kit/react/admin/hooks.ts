@@ -24,6 +24,7 @@ import type {
   RenderPreviewRequest,
   SendNotificationRequest,
 } from '../../core';
+import { refreshDismissed } from '../announcementHistory';
 import { useNotificationsContext } from '../context';
 
 const retryRead = (failureCount: number, error: unknown) =>
@@ -221,7 +222,7 @@ export function usePublishAnnouncement() {
 
 /** Content only: the audience and the window go back unchanged. */
 export function useCorrectAnnouncement() {
-  const { api } = useNotificationsContext();
+  const { api, storageScope } = useNotificationsContext();
   const client = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -233,6 +234,12 @@ export function useCorrectAnnouncement() {
     }) => api.announcements.correct(id, request),
     retry: false,
     onSuccess: (_, { id }) => {
+      // A closed announcement is listed from what this browser kept when it
+      // was closed: give that list the corrected text too.
+      api.announcements.get(id).then(
+        entry => refreshDismissed(storageScope, entry),
+        () => undefined
+      );
       void client.invalidateQueries({
         queryKey: notificationKeys.announcements(),
       });
