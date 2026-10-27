@@ -2,6 +2,7 @@ import { createNotificationsClient } from './client';
 import type { NotificationsClient, NotificationsClientOptions } from './client';
 import type {
   AnnouncementAdmin,
+  AnnouncementWindowRequest,
   BatchSendRequest,
   BatchSendResponse,
   DeliveryContentResponse,
@@ -171,6 +172,16 @@ export function createNotificationsApi(
         path: { id },
         body,
       }),
+
+    /**
+     * When it is shown. `visibleUntil` in the past ends the display at once.
+     * Proposed: not in notification-service yet (`features.announcementWindow`).
+     */
+    changeWindow: (
+      id: string,
+      body: AnnouncementWindowRequest
+    ): Promise<AnnouncementAdmin> =>
+      client.call('POST /announcements/{id}/window', { path: { id }, body }),
 
     async emailRun(
       id: string,

@@ -134,6 +134,10 @@ export interface NotificationsFeatures {
   mailings: boolean;
   /** Publishing announcements: `AnnouncementPublisher`. */
   publishing: boolean;
+  /** Changing the dates of a published announcement and removing it from
+   *  display (`POST /announcements/{id}/window`). Needs `publishing`. The
+   *  service does not have this endpoint yet. */
+  announcementWindow: boolean;
 }
 
 export const ALL_FEATURES: NotificationsFeatures = {
@@ -143,6 +147,7 @@ export const ALL_FEATURES: NotificationsFeatures = {
   bell: true,
   mailings: true,
   publishing: true,
+  announcementWindow: true,
 };
 
 function resolveFeatures(
@@ -150,6 +155,7 @@ function resolveFeatures(
 ): NotificationsFeatures {
   const next = { ...ALL_FEATURES, ...features };
   next.banners = next.banners && next.announcements;
+  next.announcementWindow = next.announcementWindow && next.publishing;
   return next;
 }
 
@@ -295,8 +301,17 @@ export function NotificationsProvider({
       bell: f.bell,
       mailings: f.mailings,
       publishing: f.publishing,
+      announcementWindow: f.announcementWindow,
     }),
-    [f.inbox, f.announcements, f.banners, f.bell, f.mailings, f.publishing]
+    [
+      f.inbox,
+      f.announcements,
+      f.banners,
+      f.bell,
+      f.mailings,
+      f.publishing,
+      f.announcementWindow,
+    ]
   );
   const [preview] = useState(createPreviewStore);
   const unreadCountMs = polling?.unreadCountMs ?? 60_000;

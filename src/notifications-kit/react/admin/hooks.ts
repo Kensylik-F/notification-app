@@ -20,6 +20,7 @@ import type {
   DeliveryResponse,
   NotificationRequestResponse,
   OperationPoll,
+  AnnouncementWindowRequest,
   PublishAnnouncementRequest,
   RenderPreviewRequest,
   SendNotificationRequest,
@@ -231,6 +232,29 @@ export function useCorrectAnnouncement() {
       id: string;
       request: PublishAnnouncementRequest;
     }) => api.announcements.correct(id, request),
+    retry: false,
+    onSuccess: (_, { id }) => {
+      void client.invalidateQueries({
+        queryKey: notificationKeys.announcements(),
+      });
+      void client.invalidateQueries({
+        queryKey: notificationKeys.announcement(id),
+      });
+    },
+  });
+}
+
+export function useChangeAnnouncementWindow() {
+  const { api } = useNotificationsContext();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      request,
+    }: {
+      id: string;
+      request: AnnouncementWindowRequest;
+    }) => api.announcements.changeWindow(id, request),
     retry: false,
     onSuccess: (_, { id }) => {
       void client.invalidateQueries({

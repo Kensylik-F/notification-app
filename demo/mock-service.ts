@@ -148,7 +148,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
   const announcements: StoredAnnouncement[] = [
     {
       id: uuid(901),
-      category: 'platform-incident',
+      category: 'custom-transitions',
       categoryClass: 'TRANSACTIONAL',
       locale: 'ru',
       subject: 'Плановые работы сегодня с 22:00 до 23:00',
@@ -161,7 +161,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     },
     {
       id: uuid(902),
-      category: 'platform-release',
+      category: 'custom-marketing',
       categoryClass: 'MARKETING',
       locale: 'ru',
       subject: 'Появился предзаказ данных',
@@ -174,7 +174,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     },
     {
       id: uuid(904),
-      category: 'platform-release',
+      category: 'custom-marketing',
       categoryClass: 'MARKETING',
       locale: 'ru',
       subject: 'Выгрузки стали быстрее',
@@ -188,7 +188,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     },
     {
       id: uuid(905),
-      category: 'platform-release',
+      category: 'custom-marketing',
       categoryClass: 'MARKETING',
       locale: 'ru',
       subject: 'Новый фильтр в каталоге',
@@ -200,7 +200,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     },
     {
       id: uuid(906),
-      category: 'platform-incident',
+      category: 'custom-transitions',
       categoryClass: 'TRANSACTIONAL',
       locale: 'ru',
       subject: 'Согласование предзаказов временно через почту',
@@ -217,7 +217,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     },
     {
       id: uuid(907),
-      category: 'platform-tip',
+      category: 'custom-notice',
       categoryClass: 'PLATFORM',
       locale: 'ru',
       subject: 'Обновлён регламент описания источников',
@@ -230,7 +230,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     },
     {
       id: uuid(903),
-      category: 'platform-tip',
+      category: 'custom-notice',
       categoryClass: 'PLATFORM',
       locale: 'ru',
       subject: 'Фильтр источников стал быстрее',
@@ -256,7 +256,7 @@ export function createMockService(options: { latencyMs?: number } = {}) {
       announcements.length,
       ...HTML_SAMPLES.map((sample, index) => ({
         id: uuid(950 + index),
-        category: 'platform-release',
+        category: 'custom-marketing',
         categoryClass: 'MARKETING' as const,
         locale: 'ru',
         subject: sample.subject,
@@ -288,6 +288,10 @@ export function createMockService(options: { latencyMs?: number } = {}) {
     correct: (id, subject, bodyText, bodyHtml) => {
       const found = announcements.find(a => a.id === id);
       if (found) Object.assign(found, { subject, bodyText, bodyHtml });
+    },
+    window: (id, visibleFrom, visibleUntil) => {
+      const found = announcements.find(a => a.id === id);
+      if (found) Object.assign(found, { visibleFrom, visibleUntil });
     },
     lookup: id => {
       const found = announcements.find(a => a.id === id);

@@ -363,7 +363,16 @@ export const ADMIN_MESSAGES_RU = {
   'published.error': 'Не удалось загрузить список',
   'edit.title': 'Изменить объявление',
   'edit.fixed':
-    'Аудитория, вид и срок показа не меняются — только текст. Исправление сразу увидят все, кому объявление показывается.',
+    'Аудитория и вид не меняются. Исправление сразу увидят все, кому объявление показывается.',
+  'edit.window': 'Срок показа',
+  'edit.window.hint':
+    'Не дольше {days} дней. Дата в прошлом снимает объявление с показа.',
+  'edit.window.unsupported':
+    'Сервис уведомлений пока не умеет менять срок показа (нет POST /announcements/{id}/window).',
+  'edit.remove': 'Снять с показа',
+  'edit.removed': 'Объявление снято с показа',
+  'edit.remove.confirm':
+    'Объявление перестанет показываться всем пользователям: срок показа закончится вчерашним днём. Текст останется в истории.',
   'edit.save': 'Сохранить',
   'edit.saving': 'Сохранение…',
   'edit.saved': 'Изменения сохранены',
@@ -743,7 +752,16 @@ export const ADMIN_MESSAGES_EN: Record<keyof typeof ADMIN_MESSAGES_RU, string> =
     'published.error': 'Could not load the list',
     'edit.title': 'Edit the announcement',
     'edit.fixed':
-      'The audience, the view and the window stay as they are - only the text changes. Everyone it is shown to sees the correction at once.',
+      'The audience and the view stay as they are. Everyone it is shown to sees the correction at once.',
+    'edit.window': 'Shown',
+    'edit.window.hint':
+      'At most {days} days. A date in the past removes it from display.',
+    'edit.window.unsupported':
+      'The notification service cannot change the dates yet (no POST /announcements/{id}/window).',
+    'edit.remove': 'Remove from display',
+    'edit.removed': 'The announcement is no longer shown',
+    'edit.remove.confirm':
+      'Nobody will see the announcement any more: its display ends with yesterday. The text stays in history.',
     'edit.save': 'Save',
     'edit.saving': 'Saving…',
     'edit.saved': 'Changes saved',

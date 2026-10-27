@@ -583,6 +583,12 @@ function PublishResult({
               initial: requestToContent(current, admin.freeformTemplateKey),
               originKnown: true,
               unavailable: false,
+              visibleFrom:
+                announcement.visibleFrom ??
+                current.visibleFrom ??
+                announcement.publishedAt ??
+                null,
+              visibleUntil: announcement.visibleUntil ?? current.visibleUntil,
             }}
             onCancel={() => setCorrecting(false)}
             onDone={next => {

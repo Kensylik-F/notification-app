@@ -333,16 +333,16 @@ export interface PublishedAnnouncement {
 
 /** Categories whose announcements are also emailed, as the service's
  *  category configuration would say. */
-const EMAILED_CATEGORIES = new Set(['platform-incident']);
+const EMAILED_CATEGORIES = new Set(['custom-transitions']);
 
 /** The service's announcement catalogue: the category decides the class. */
 export const ANNOUNCEMENT_CLASS: Record<
   string,
   'TRANSACTIONAL' | 'PLATFORM' | 'MARKETING'
 > = {
-  'platform-incident': 'TRANSACTIONAL',
-  'platform-tip': 'PLATFORM',
-  'platform-release': 'MARKETING',
+  'custom-transitions': 'TRANSACTIONAL',
+  'custom-notice': 'PLATFORM',
+  'custom-marketing': 'MARKETING',
 };
 
 export function createAdminMock(options: {
@@ -353,6 +353,8 @@ export function createAdminMock(options: {
     bodyText: string,
     bodyHtml: string | null
   ) => void;
+  /** The display window changed (the proposed `/window` endpoint). */
+  window?: (id: string, visibleFrom: string, visibleUntil: string) => void;
   /** An announcement the service already had (the demo's seed). */
   lookup?: (id: string) =>
     | {
@@ -389,7 +391,7 @@ export function createAdminMock(options: {
       id: uuid(),
       requestId,
       templateKey: key,
-      category: key === 'platform-release' ? 'platform-release' : 'account',
+      category: key === 'platform-release' ? 'custom-marketing' : 'account',
       categoryClass: 'TRANSACTIONAL',
       priority: key === 'password-reset' ? 'HIGH' : 'NORMAL',
       channel,
@@ -819,11 +821,12 @@ export function createAdminMock(options: {
       return json(201, admin);
     }
 
-    if ((m = route.match(/^POST \/announcements\/([^/]+)\/corrections$/))) {
-      const seeded = published.has(m[1]!) ? undefined : options.lookup?.(m[1]!);
+    /** A published announcement, the demo's seed included. */
+    const known = (id: string) => {
+      const seeded = published.has(id) ? undefined : options.lookup?.(id);
       if (seeded) {
-        published.set(m[1]!, {
-          id: m[1]!,
+        published.set(id, {
+          id,
           ...seeded,
           categoryClass: ANNOUNCEMENT_CLASS[seeded.category] ?? 'MARKETING',
           audienceType: 'EVERYONE',
@@ -833,7 +836,61 @@ export function createAdminMock(options: {
           emailRunId: null,
         });
       }
-      const admin = published.get(m[1]!);
+      return published.get(id);
+    };
+
+    // Proposed, not in the service yet: see docs/spec-announcement-window.md.
+    if ((m = route.match(/^POST \/announcements\/([^/]+)\/window$/))) {
+      const admin = known(m[1]!);
+      if (!admin)
+        return problem(
+          404,
+          'error.notification.announcement.not-found',
+          'Не найдено',
+          'Объявление не найдено.'
+        );
+      const until = Date.parse(String(body.visibleUntil ?? ''));
+      const from = body.visibleFrom
+        ? Date.parse(String(body.visibleFrom))
+        : Date.parse(String(admin.visibleFrom));
+      if (Number.isNaN(until) || Number.isNaN(from))
+        return problem(
+          400,
+          'error.validation',
+          'Неверный запрос',
+          'Укажите visibleUntil.'
+        );
+      const ending = until <= Date.now();
+      if (!ending && until <= from)
+        return problem(
+          422,
+          'error.notification.announcement.window-invalid',
+          'Неверный срок',
+          'Окончание должно быть позже начала.'
+        );
+      if (!ending && until - from > 90 * 86_400_000)
+        return problem(
+          422,
+          'error.notification.announcement.window-too-long',
+          'Слишком долго',
+          'Не дольше 90 дней.'
+        );
+      const visibleFrom = new Date(ending ? Math.min(from, until) : from);
+      admin.visibleFrom = visibleFrom.toISOString();
+      admin.visibleUntil = new Date(until).toISOString();
+      options.window?.(
+        m[1]!,
+        String(admin.visibleFrom),
+        String(admin.visibleUntil)
+      );
+      // Ending the display stops its email run, as the spec says.
+      const run = runs.get(m[1]!);
+      if (ending && run) run.cancelledAt ??= now;
+      return json(200, admin);
+    }
+
+    if ((m = route.match(/^POST \/announcements\/([^/]+)\/corrections$/))) {
+      const admin = known(m[1]!);
       if (!admin)
         return problem(
           404,

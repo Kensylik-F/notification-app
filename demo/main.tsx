@@ -43,6 +43,7 @@ const HOST_DEFAULTS: NotificationsFeatures = {
   bell: true,
   mailings: false,
   publishing: true,
+  announcementWindow: true,
 };
 const initialParams = new URLSearchParams(window.location.search);
 const FEATURES: Partial<NotificationsFeatures> = {
@@ -78,19 +79,19 @@ const ADMIN: AdminOptions = {
     },
     { code: 'digest', label: 'Новости', categoryClass: 'MARKETING' },
     {
-      code: 'platform-incident',
+      code: 'custom-transitions',
       label: 'Работы и сбои',
       announcement: true,
       categoryClass: 'TRANSACTIONAL',
     },
     {
-      code: 'platform-tip',
+      code: 'custom-notice',
       label: 'Регламенты и советы',
       announcement: true,
       categoryClass: 'PLATFORM',
     },
     {
-      code: 'platform-release',
+      code: 'custom-marketing',
       label: 'Новое в продукте',
       announcement: true,
       categoryClass: 'MARKETING',
