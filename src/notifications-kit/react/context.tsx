@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 import type {
   AnnouncementEntry,
+  CategoryClass,
   InboxEntry,
   NotificationsApi,
   RecipientDraft,
@@ -69,8 +70,26 @@ export interface NotificationPermissions {
   announce: boolean;
 }
 
+/**
+ * The category an announcement is published under, per view ("how to
+ * show"): a click on the view sends this code as `category`. The codes must
+ * exist in the service's `notification.announcements.categories`.
+ */
+export const DEFAULT_ANNOUNCEMENT_CATEGORIES: Readonly<
+  Record<CategoryClass, string>
+> = {
+  TRANSACTIONAL: 'custom-transitions',
+  PLATFORM: 'custom-notice',
+  MARKETING: 'custom-marketing',
+};
+
 export interface AdminOptions {
+  /** Labels and classes of categories (inbox, mailings). Announcement codes
+   *  come from `announcementCategories`, not from here. */
   categories?: readonly AdminCategory[];
+  /** Announcement category per view. Default:
+   *  `DEFAULT_ANNOUNCEMENT_CATEGORIES`. */
+  announcementCategories?: Partial<Record<CategoryClass, string>>;
   roles?: readonly AdminRole[];
   /** Finds people for the recipient field. Without it recipients are typed
    *  in as a user id or an e-mail address. */
@@ -105,6 +124,7 @@ export interface AdminOptions {
 
 export interface ResolvedAdminOptions {
   categories: readonly AdminCategory[];
+  announcementCategories: Readonly<Record<CategoryClass, string>>;
   roles: readonly AdminRole[];
   searchRecipients: AdminOptions['searchRecipients'];
   freeformTemplateKey: string | undefined;
@@ -135,8 +155,9 @@ export interface NotificationsFeatures {
   /** Publishing announcements: `AnnouncementPublisher`. */
   publishing: boolean;
   /** Changing the dates of a published announcement and removing it from
-   *  display (`POST /announcements/{id}/window`). Needs `publishing`. The
-   *  service does not have this endpoint yet. */
+   *  display (`POST /announcements/{id}/window`). Needs `publishing`.
+   *  Default: `false` - notification-service has no such endpoint yet;
+   *  turn it on when it has. */
   announcementWindow: boolean;
 }
 
@@ -147,7 +168,7 @@ export const ALL_FEATURES: NotificationsFeatures = {
   bell: true,
   mailings: true,
   publishing: true,
-  announcementWindow: true,
+  announcementWindow: false,
 };
 
 function resolveFeatures(
@@ -253,6 +274,10 @@ function resolveAdmin(admin: AdminOptions | undefined): ResolvedAdminOptions {
   const p = admin?.permissions ?? {};
   return {
     categories: admin?.categories ?? NONE,
+    announcementCategories: {
+      ...DEFAULT_ANNOUNCEMENT_CATEGORIES,
+      ...admin?.announcementCategories,
+    },
     roles: admin?.roles ?? NONE,
     searchRecipients: admin?.searchRecipients,
     freeformTemplateKey: admin?.freeformTemplateKey?.trim() || undefined,

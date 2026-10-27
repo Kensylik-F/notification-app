@@ -1,6 +1,7 @@
 /** notifications-kit React layer: provider, hooks and components. */
 export {
   ALL_FEATURES,
+  DEFAULT_ANNOUNCEMENT_CATEGORIES,
   NotificationsProvider,
   useNotificationsContext,
   type ItemDescription,

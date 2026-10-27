@@ -9,7 +9,7 @@ import { useNotificationsContext } from '../context';
 import type { AnnouncementPresentation } from '../presentation';
 import { useKitPreview } from '../preview';
 import styles from './admin.module.css';
-import { Field, FieldSet, Segmented, TextInput } from './forms';
+import { FieldSet, Segmented } from './forms';
 import {
   previewAnnouncementEntry,
   useFetchPreview,
@@ -42,9 +42,13 @@ export function useLabels() {
  *  host knows for it (`admin.categories`), else as one without a class. */
 export function usePresentationOf() {
   const { resolvePresentation, admin } = useNotificationsContext();
-  const classOf = (category: string) =>
-    admin.categories.find(c => c.code === category.trim())?.categoryClass ??
-    null;
+  const classOf = (category: string): CategoryClass | null => {
+    const code = category.trim();
+    const own = CLASSES.find(cls => admin.announcementCategories[cls] === code);
+    return (
+      own ?? admin.categories.find(c => c.code === code)?.categoryClass ?? null
+    );
+  };
   const presentationOf = (category: string): AnnouncementPresentation =>
     resolvePresentation({
       id: 'probe',
@@ -177,9 +181,9 @@ export const PRESENTATION_ICON: Record<
 
 /**
  * "How to show": one tile per category class. A click picks the category
- * the host configured for that class (`admin.categories`); there is no
- * separate category field. Without any configured category the code is
- * typed by hand.
+ * of that class from `admin.announcementCategories` (`custom-transitions`,
+ * `custom-notice`, `custom-marketing` by default); there is no separate
+ * category field.
  */
 export function ViewPicker({
   category,
@@ -193,9 +197,8 @@ export function ViewPicker({
   const { t, admin } = useNotificationsContext();
   const presentationOf = usePresentationOf();
   const labels = useLabels();
-  const categories = admin.categories.filter(c => c.announcement);
   const categoryOfClass = (cls: CategoryClass) =>
-    categories.find(c => c.categoryClass === cls)?.code;
+    admin.announcementCategories[cls] || undefined;
   const picked = category.trim();
   const pickedClass = presentationOf.classOf(picked);
 
@@ -240,32 +243,11 @@ export function ViewPicker({
           })}
         </div>
       </FieldSet>
-      {categories.length === 0 ? (
-        <Field
-          label={t('announce.category')}
-          required
-          hint={t('announce.category.hintNoList')}
-        >
-          {({ id, describedBy, invalid }) => (
-            <TextInput
-              id={id}
-              aria-describedby={describedBy}
-              invalid={invalid}
-              value={category}
-              spellCheck={false}
-              autoComplete='off'
-              placeholder={t('compose.category.placeholder')}
-              onChange={event => onChange(event.target.value)}
-            />
-          )}
-        </Field>
-      ) : (
-        picked && (
-          <p className={styles.viewCategory}>
-            {t('announce.category')}: <strong>{labels.category(picked)}</strong>{' '}
-            <code>{picked}</code>
-          </p>
-        )
+      {picked && (
+        <p className={styles.viewCategory}>
+          {t('announce.category')}: <strong>{labels.category(picked)}</strong>{' '}
+          <code>{picked}</code>
+        </p>
       )}
     </>
   );

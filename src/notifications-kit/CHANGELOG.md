@@ -1,5 +1,21 @@
 # Изменения
 
+## 0.6.3
+
+- **Категория объявления зашита в кит.** Клик по виду отправляет в
+  `category`: «Окном по центру» → `custom-transitions`, «Полосой сверху» →
+  `custom-notice`, «Справа сверху» → `custom-marketing`. Коды больше не
+  берутся из `admin.categories` (`announcement: true` ни на что не влияет),
+  так что старые коды из конфига приложения (`platform-release` и др.) в
+  запрос не попадут. Переопределить — `admin.announcementCategories`.
+  Константа — `DEFAULT_ANNOUNCEMENT_CATEGORIES`.
+- **Срок показа и «Снять с показа» выключены по умолчанию**
+  (`features.announcementWindow: false`): в notification-service нет
+  эндпоинта `POST /announcements/{id}/window`, на стенде он отвечал 404.
+  Правка текста (`corrections`) работает как раньше. Включить — когда
+  эндпоинт появится (`docs/spec-announcement-window.md`).
+- Поле ручного ввода категории в форме объявления убрано.
+
 ## 0.6.2
 
 - **Срок показа и снятие с показа.** В окне правки объявления (в
