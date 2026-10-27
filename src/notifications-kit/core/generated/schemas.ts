@@ -41,15 +41,6 @@ export const AnnouncementSummarySchema = z.object({
 });
 export type AnnouncementSummary = z.infer<typeof AnnouncementSummarySchema>;
 
-/** PROPOSED (x-kit-status). Absent visibleFrom keeps the current start. */
-export const AnnouncementWindowRequestSchema = z.object({
-  visibleFrom: z.iso.datetime({ offset: true }).optional(),
-  visibleUntil: z.iso.datetime({ offset: true }),
-});
-export type AnnouncementWindowRequest = z.infer<
-  typeof AnnouncementWindowRequestSchema
->;
-
 export const RecipientDtoSchema = z.object({
   address: z.string().max(512).optional(),
   exactlyOneIdentifier: z.boolean().optional(),

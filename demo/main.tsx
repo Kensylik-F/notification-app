@@ -43,14 +43,10 @@ const HOST_DEFAULTS: NotificationsFeatures = {
   bell: true,
   mailings: false,
   publishing: true,
-  announcementWindow: true,
 };
 const initialParams = new URLSearchParams(window.location.search);
 const FEATURES: Partial<NotificationsFeatures> = {
-  // The mock has the proposed `/window` endpoint, so the demo shows it.
-  ...(initialParams.get('flags') === 'all'
-    ? { announcementWindow: true }
-    : HOST_DEFAULTS),
+  ...(initialParams.get('flags') === 'all' ? {} : HOST_DEFAULTS),
   // `?banners=0`: nothing over the page (for screenshots of the forms).
   ...(initialParams.get('banners') === '0' ? { banners: false } : {}),
 };

@@ -630,18 +630,6 @@ components:
       - templateKey
       - visibleUntil
       type: object
-    AnnouncementWindowRequest:
-      description: 'PROPOSED (x-kit-status). Absent visibleFrom keeps the current start.'
-      properties:
-        visibleFrom:
-          format: date-time
-          type: string
-        visibleUntil:
-          format: date-time
-          type: string
-      required:
-      - visibleUntil
-      type: object
     RecipientDto:
       properties:
         address:
@@ -1008,40 +996,6 @@ paths:
                 $ref: '#/components/schemas/ProblemDetail'
           description: RFC 9457 problem document. Branch on `code`, never on `detail`.
       summary: Correct a published announcement's content
-      tags:
-      - Announcement administration
-  /api/v1/announcements/{id}/window:
-    post:
-      description: 'PROPOSED, not in notification-service yet (x-kit-status). Changes when the announcement is shown. A visibleUntil in the past ends the display at once (the kit''s "remove": end of the previous day); visibleFrom is then not checked and dismissals stay. Otherwise visibleFrom < visibleUntil and the window is at most notification.announcements.max-visibility-days.'
-      operationId: changeWindow
-      x-kit-status: proposed
-      parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          format: uuid
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AnnouncementWindowRequest'
-        required: true
-      responses:
-        '200':
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/AnnouncementAdmin'
-          description: OK
-        default:
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-          description: RFC 9457 problem document. Branch on `code`, never on `detail`.
-      summary: Change the display window of a published announcement
       tags:
       - Announcement administration
   /api/v1/announcements/{id}/dismiss:

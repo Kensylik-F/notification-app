@@ -1,5 +1,15 @@
 # Изменения
 
+## 0.6.4
+
+- **Убрано всё, чего нет в notification-service:** блок «Срок показа»,
+  кнопка «Снять с показа», запрос `POST /announcements/{id}/window`, флаг
+  `features.announcementWindow`, `api.announcements.changeWindow`. Кит
+  снова делает только то, что есть в сервисе: правка текста через
+  `corrections`.
+- Категории объявлений — как в 0.6.3: `custom-transitions` /
+  `custom-notice` / `custom-marketing` по виду.
+
 ## 0.6.3
 
 - **Категория объявления зашита в кит.** Клик по виду отправляет в

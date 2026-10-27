@@ -2187,31 +2187,3 @@
     flex-wrap: wrap;
   }
 }
-
-.editWindow {
-  display: grid;
-  gap: 8px;
-}
-
-.editRemove {
-  margin-inline-start: auto;
-  color: var(--nk-color-danger, #b3402a);
-  border-color: var(--nk-color-danger, #b3402a);
-}
-
-.editWindowRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.editConfirm {
-  display: grid;
-  gap: 10px;
-}
-
-.editRemoveConfirm {
-  background: var(--nk-color-danger, #b3402a);
-  border-color: var(--nk-color-danger, #b3402a);
-}
