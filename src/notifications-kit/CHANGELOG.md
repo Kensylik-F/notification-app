@@ -1,5 +1,21 @@
 # Изменения
 
+## 0.6.8
+
+- **Срок показа и «Снять с показа» — по новым запросам
+  notification-service** (коммит `44358a9` Андрея; контракт кита обновлён
+  из его `docs/api/notification-service.openapi.yaml`):
+  - `PUT /announcements/{id}/window` — поля «С» / «По» в окне правки.
+    Окончание не может быть в прошлом; «С» заблокировано, если показ уже
+    начался; не дольше `maxVisibilityDays`.
+  - `POST /announcements/{id}/withdrawal` — кнопка «Снять с показа» с
+    подтверждением и необязательной причиной. Снятое объявление в
+    «Опубликованных» — со статусом «Снято с показа», без «Изменить».
+- `api.announcements.changeWindow`, `api.announcements.withdraw`, хуки
+  `useChangeAnnouncementWindow`, `useWithdrawAnnouncement`. В
+  `AnnouncementAdmin` — `withdrawnAt`, `withdrawnBy`, `withdrawalReason`.
+- Демо: мок обоих запросов по правилам сервиса.
+
 ## 0.6.7
 
 - Отменено 0.6.6: в окне правки снова только текст (или параметры

@@ -289,6 +289,15 @@ export function createMockService(options: { latencyMs?: number } = {}) {
       const found = announcements.find(a => a.id === id);
       if (found) Object.assign(found, { subject, bodyText, bodyHtml });
     },
+    window: (id, visibleFrom, visibleUntil) => {
+      const found = announcements.find(a => a.id === id);
+      if (found) Object.assign(found, { visibleFrom, visibleUntil });
+    },
+    // Gone from the list, the count and the read by id for everyone.
+    withdraw: id => {
+      const index = announcements.findIndex(a => a.id === id);
+      if (index >= 0) announcements.splice(index, 1);
+    },
     lookup: id => {
       const found = announcements.find(a => a.id === id);
       return found

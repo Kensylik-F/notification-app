@@ -16,10 +16,12 @@ import {
   shouldRetry,
 } from '../../core';
 import type {
+  AnnouncementAdmin,
   DeliveryFilter,
   DeliveryResponse,
   NotificationRequestResponse,
   OperationPoll,
+  ChangeAnnouncementWindowRequest,
   PublishAnnouncementRequest,
   RenderPreviewRequest,
   SendNotificationRequest,
@@ -248,6 +250,41 @@ export function useCorrectAnnouncement() {
       });
     },
   });
+}
+
+function useAnnouncementMutation<V>(
+  call: (id: string, body: V) => Promise<AnnouncementAdmin>
+) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, request }: { id: string; request: V }) =>
+      call(id, request),
+    retry: false,
+    onSuccess: (_, { id }) => {
+      void client.invalidateQueries({
+        queryKey: notificationKeys.announcements(),
+      });
+      void client.invalidateQueries({
+        queryKey: notificationKeys.announcement(id),
+      });
+    },
+  });
+}
+
+/** `PUT /announcements/{id}/window`. */
+export function useChangeAnnouncementWindow() {
+  const { api } = useNotificationsContext();
+  return useAnnouncementMutation<ChangeAnnouncementWindowRequest>(
+    api.announcements.changeWindow
+  );
+}
+
+/** `POST /announcements/{id}/withdrawal`. */
+export function useWithdrawAnnouncement() {
+  const { api } = useNotificationsContext();
+  return useAnnouncementMutation<{ reason?: string }>(
+    api.announcements.withdraw
+  );
 }
 
 const MIN_POLL_MS = 1_000;

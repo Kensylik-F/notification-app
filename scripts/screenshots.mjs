@@ -276,6 +276,20 @@ if (run('announce')) {
   await page.getByRole('button', { name: 'Изменить' }).first().click();
   await wait(page, 600);
   await shot(page, '48-announce-edit');
+  const edit = page.getByRole('dialog');
+  await edit.getByText('Срок показа').scrollIntoViewIfNeeded();
+  await wait(page, 300);
+  await shot(page, '50-announce-edit-window');
+  await edit.getByRole('button', { name: 'Снять с показа' }).click();
+  await edit.getByLabel('Причина (необязательно)').fill('Работы перенесены');
+  await wait(page, 300);
+  await shot(page, '51-announce-remove-confirm');
+  await edit
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Снять с показа' })
+    .click();
+  await wait(page, 900);
+  await shot(page, '52-announce-removed');
   await page.context().close();
 }
 

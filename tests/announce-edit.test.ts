@@ -5,11 +5,13 @@ import type { PublishAnnouncementRequest } from '../src/notifications-kit/core';
 import {
   requestToContent,
   textToHtml,
+  validateWindow,
 } from '../src/notifications-kit/react/admin/AnnouncementEditor';
 import {
   readPublished,
   rememberCorrection,
   rememberPublished,
+  rememberAdmin,
 } from '../src/notifications-kit/react/admin/publishedJournal';
 
 const ID = '7c3f1d2e-1111-4a2b-8c3d-000000000001';
@@ -91,5 +93,60 @@ describe('published journal', () => {
   it('ignores a correction of an announcement published elsewhere', () => {
     rememberCorrection('u1', ID, freeform);
     expect(readPublished('u1')).toEqual([]);
+  });
+});
+
+describe('the display window (PUT /announcements/{id}/window)', () => {
+  const day = 86_400_000;
+  const now = Date.parse('2026-10-28T12:00:00Z');
+  const at = (offset: number) => new Date(now + offset).toISOString();
+
+  it('the end cannot be in the past', () => {
+    expect(
+      validateWindow(at(-day), at(-60_000), 90, { opened: true, now })
+    ).toEqual({ until: 'past' });
+  });
+
+  it('a start not yet reached cannot move into the past', () => {
+    expect(
+      validateWindow(at(-day), at(day), 90, { opened: false, now })
+    ).toEqual({ from: 'past' });
+  });
+
+  it('the end after the start, at most maxDays', () => {
+    expect(
+      validateWindow(at(2 * day), at(day), 90, { opened: false, now })
+    ).toEqual({ until: 'beforeStart' });
+    expect(
+      validateWindow(at(day), at(92 * day), 90, { opened: false, now })
+    ).toEqual({ until: 'tooLong' });
+    expect(
+      validateWindow(at(-day), at(3 * day), 90, { opened: true, now })
+    ).toEqual({});
+    expect(validateWindow('', '', 90, { opened: true, now })).toEqual({
+      until: 'required',
+    });
+  });
+
+  it('the journal keeps the dates and the withdrawal of the answer', () => {
+    rememberPublished(
+      'w',
+      { id: ID, visibleUntil: '2026-11-01T00:00:00Z' },
+      {
+        category: 'custom-notice',
+        audienceType: 'EVERYONE',
+        templateKey: 'custom-message',
+        visibleUntil: '2026-11-01T00:00:00Z',
+      }
+    );
+    rememberAdmin('w', ID, {
+      id: ID,
+      visibleUntil: '2026-11-05T09:00:00Z',
+      withdrawnAt: '2026-10-28T12:00:00Z',
+    });
+    const [record] = readPublished('w');
+    expect(record!.announcement.visibleUntil).toBe('2026-11-05T09:00:00Z');
+    expect(record!.request.visibleUntil).toBe('2026-11-05T09:00:00Z');
+    expect(record!.announcement.withdrawnAt).toBe('2026-10-28T12:00:00Z');
   });
 });

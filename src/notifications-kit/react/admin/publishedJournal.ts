@@ -97,3 +97,33 @@ export function subscribePublished(listener: () => void): () => void {
     window.removeEventListener('storage', onStorage);
   };
 }
+
+/** The service's answer to a change (window, withdrawal): the record
+ *  keeps its dates and its withdrawal. */
+export function rememberAdmin(
+  scope: string,
+  id: string,
+  admin: AnnouncementAdmin
+) {
+  const records = readPublished(scope);
+  if (!records.some(record => record.id === id)) return;
+  write(
+    scope,
+    records.map(record =>
+      record.id === id
+        ? {
+            ...record,
+            announcement: { ...record.announcement, ...admin },
+            request: {
+              ...record.request,
+              ...(admin.visibleFrom ? { visibleFrom: admin.visibleFrom } : {}),
+              ...(admin.visibleUntil
+                ? { visibleUntil: admin.visibleUntil }
+                : {}),
+            },
+            correctedAt: new Date().toISOString(),
+          }
+        : record
+    )
+  );
+}

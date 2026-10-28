@@ -24,7 +24,7 @@ import { Notice } from './forms';
 import type { PublishedRecord } from './publishedJournal';
 import { readPublished, subscribePublished } from './publishedJournal';
 
-type Status = 'scheduled' | 'active' | 'ended';
+type Status = 'scheduled' | 'active' | 'ended' | 'withdrawn';
 
 interface Row {
   id: string;
@@ -35,6 +35,7 @@ interface Row {
   visibleFrom: string | null;
   visibleUntil: string | null;
   publishedAt: string | null;
+  withdrawn?: boolean;
   entry?: AnnouncementEntry;
 }
 
@@ -51,6 +52,7 @@ export function usePublishedRecords(): PublishedRecord[] {
 }
 
 function statusOf(row: Row, now: number): Status {
+  if (row.withdrawn) return 'withdrawn';
   const from = row.visibleFrom ? Date.parse(row.visibleFrom) : NaN;
   const until = row.visibleUntil ? Date.parse(row.visibleUntil) : NaN;
   if (!Number.isNaN(from) && from > now) return 'scheduled';
@@ -90,7 +92,9 @@ export function PublishedAnnouncements({
   const active = useAnnouncements();
   const closed = useDismissedAnnouncements();
   const [editing, setEditing] = useState<string | null>(editId ?? null);
-  const [saved, setSaved] = useState<string | null>(null);
+  const [saved, setSaved] = useState<{ id: string; removed: boolean } | null>(
+    null
+  );
 
   useEffect(() => {
     if (editId) setEditing(editId);
@@ -122,6 +126,7 @@ export function PublishedAnnouncements({
       visibleFrom: a.visibleFrom ?? record.request.visibleFrom ?? null,
       visibleUntil: a.visibleUntil ?? record.request.visibleUntil,
       publishedAt: a.publishedAt ?? record.publishedAt,
+      withdrawn: Boolean(a.withdrawnAt),
     });
   }
   for (const { entry } of closed) {
@@ -150,8 +155,11 @@ export function PublishedAnnouncements({
   return (
     <div className={cx(styles.root, styles.stack, styles.published)}>
       {saved && (
-        <Notice tone='success' title={t('edit.saved')}>
-          {list.find(r => r.id === saved)?.subject ?? null}
+        <Notice
+          tone='success'
+          title={saved.removed ? t('edit.removed') : t('edit.saved')}
+        >
+          {list.find(r => r.id === saved.id)?.subject ?? null}
         </Notice>
       )}
       {active.isPending && list.length === 0 ? (
@@ -205,16 +213,18 @@ export function PublishedAnnouncements({
                       .join(' · ')}
                   </span>
                 </span>
-                <Button
-                  size='sm'
-                  icon='edit'
-                  onClick={() => {
-                    setSaved(null);
-                    setEditing(row.id);
-                  }}
-                >
-                  {t('published.edit')}
-                </Button>
+                {status !== 'withdrawn' && (
+                  <Button
+                    size='sm'
+                    icon='edit'
+                    onClick={() => {
+                      setSaved(null);
+                      setEditing(row.id);
+                    }}
+                  >
+                    {t('published.edit')}
+                  </Button>
+                )}
               </li>
             );
           })}
@@ -229,8 +239,8 @@ export function PublishedAnnouncements({
             setEditing(null);
             onEditClose?.();
           }}
-          onSaved={() => {
-            setSaved(editing);
+          onSaved={result => {
+            setSaved({ id: editing, ...result });
             setEditing(null);
             onEditClose?.();
           }}
@@ -251,7 +261,7 @@ export function EditDialog({
   id: string;
   hint?: Partial<AnnouncementEntry>;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (result: { removed: boolean }) => void;
 }) {
   const { t } = useNotificationsContext();
   const titleId = useDomId('nk-edit');
@@ -272,7 +282,7 @@ export function EditDialog({
           <AnnouncementEditor
             target={target}
             onCancel={onClose}
-            onDone={onSaved}
+            onDone={(_, result) => onSaved(result)}
           />
         )}
       </div>

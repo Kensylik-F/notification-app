@@ -3,6 +3,7 @@ import type { NotificationsClient, NotificationsClientOptions } from './client';
 import type {
   AnnouncementAdmin,
   BatchSendRequest,
+  ChangeAnnouncementWindowRequest,
   BatchSendResponse,
   DeliveryContentResponse,
   DeliveryResponse,
@@ -18,6 +19,7 @@ import type {
   ServerInfoResponse,
   SuppressionRequest,
   SuppressionResponse,
+  WithdrawAnnouncementRequest,
 } from './generated/schemas';
 import { NotificationsError } from './errors';
 import {
@@ -162,12 +164,37 @@ export function createNotificationsApi(
     publish: (body: PublishAnnouncementRequest): Promise<AnnouncementAdmin> =>
       client.call('POST /announcements', { body }),
 
-    /** Content only; the audience and the window cannot be changed. */
+    /** Content only; the window has `changeWindow`, the audience never
+     *  changes. A withdrawn announcement answers 409. */
     correct: (
       id: string,
       body: PublishAnnouncementRequest
     ): Promise<AnnouncementAdmin> =>
       client.call('POST /announcements/{id}/corrections', {
+        path: { id },
+        body,
+      }),
+
+    /**
+     * Replaces the window. The end cannot be in the past (422
+     * `window-in-past`); the start moves only before the window opens (409
+     * `window-opened`); a withdrawn announcement answers 409 `withdrawn`.
+     */
+    changeWindow: (
+      id: string,
+      body: ChangeAnnouncementWindowRequest
+    ): Promise<AnnouncementAdmin> =>
+      client.call('PUT /announcements/{id}/window', { path: { id }, body }),
+
+    /**
+     * Hides it from every recipient at once and cancels a running email
+     * run. Final: nothing about it can change afterwards. Idempotent.
+     */
+    withdraw: (
+      id: string,
+      body: WithdrawAnnouncementRequest = {}
+    ): Promise<AnnouncementAdmin> =>
+      client.call('POST /announcements/{id}/withdrawal', {
         path: { id },
         body,
       }),

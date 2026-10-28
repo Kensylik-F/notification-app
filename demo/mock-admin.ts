@@ -353,6 +353,10 @@ export function createAdminMock(options: {
     bodyText: string,
     bodyHtml: string | null
   ) => void;
+  /** `PUT /announcements/{id}/window` changed its dates. */
+  window?: (id: string, visibleFrom: string, visibleUntil: string) => void;
+  /** `POST /announcements/{id}/withdrawal`: gone for every recipient. */
+  withdraw?: (id: string) => void;
   /** An announcement the service already had (the demo's seed). */
   lookup?: (id: string) =>
     | {
@@ -819,11 +823,12 @@ export function createAdminMock(options: {
       return json(201, admin);
     }
 
-    if ((m = route.match(/^POST \/announcements\/([^/]+)\/corrections$/))) {
-      const seeded = published.has(m[1]!) ? undefined : options.lookup?.(m[1]!);
+    /** A published announcement, the demo's seed included. */
+    const known = (id: string) => {
+      const seeded = published.has(id) ? undefined : options.lookup?.(id);
       if (seeded) {
-        published.set(m[1]!, {
-          id: m[1]!,
+        published.set(id, {
+          id,
           ...seeded,
           categoryClass: ANNOUNCEMENT_CLASS[seeded.category] ?? 'MARKETING',
           audienceType: 'EVERYONE',
@@ -831,16 +836,93 @@ export function createAdminMock(options: {
           templateKey: 'custom-message',
           publishedBy: 'demo.moderator',
           emailRunId: null,
+          withdrawnAt: null,
+          withdrawnBy: null,
+          withdrawalReason: null,
         });
       }
-      const admin = published.get(m[1]!);
-      if (!admin)
+      return published.get(id);
+    };
+    const notFound404 = () =>
+      problem(
+        404,
+        'error.notification.announcement.not-found',
+        'Не найдено',
+        'Объявление не найдено.'
+      );
+    const withdrawn409 = (id: string) =>
+      problem(
+        409,
+        'error.notification.announcement.withdrawn',
+        'Объявление отозвано',
+        `Объявление ${id} отозвано и больше не может быть изменено. Опубликуйте новое объявление.`
+      );
+
+    // As notification-service 44358a9: withdrawal hides it from everyone,
+    // stops the email run, is final and idempotent.
+    if ((m = route.match(/^POST \/announcements\/([^/]+)\/withdrawal$/))) {
+      const admin = known(m[1]!);
+      if (!admin) return notFound404();
+      if (!admin.withdrawnAt) {
+        admin.withdrawnAt = iso(now);
+        admin.withdrawnBy = 'demo.moderator';
+        admin.withdrawalReason =
+          typeof body.reason === 'string' && body.reason ? body.reason : null;
+        const run = runs.get(m[1]!);
+        if (run) run.cancelledAt ??= now;
+        options.withdraw?.(m[1]!);
+      }
+      return json(200, admin);
+    }
+
+    // The end after now; the start only before the window opens; at most
+    // 90 days; a withdrawn one is final.
+    if ((m = route.match(/^PUT \/announcements\/([^/]+)\/window$/))) {
+      const admin = known(m[1]!);
+      if (!admin) return notFound404();
+      if (admin.withdrawnAt) return withdrawn409(m[1]!);
+      const nowMs = Date.now();
+      const previousFrom = Date.parse(String(admin.visibleFrom));
+      const until = Date.parse(String(body.visibleUntil ?? ''));
+      const from = body.visibleFrom
+        ? Date.parse(String(body.visibleFrom))
+        : previousFrom;
+      const opened = previousFrom <= nowMs;
+      if (opened && from !== previousFrom)
         return problem(
-          404,
-          'error.notification.announcement.not-found',
-          'Не найдено',
-          'Объявление не найдено.'
+          409,
+          'error.notification.announcement.window-opened',
+          'Период показа уже начался',
+          `Объявление ${m[1]} уже показывается, поэтому его начало нельзя перенести. Изменить можно только окончание.`
         );
+      if (Number.isNaN(until) || until <= nowMs || (!opened && from < nowMs))
+        return problem(
+          422,
+          'error.notification.announcement.window-in-past',
+          'Период показа в прошлом',
+          'Период заканчивается или начинается в прошлом. Чтобы снять объявление сейчас, отзовите его.'
+        );
+      if (until <= from || until - from > 90 * 86_400_000)
+        return problem(
+          422,
+          'error.notification.announcement.window-too-long',
+          'Неверный период',
+          'Окончание позже начала, не дольше 90 дней.'
+        );
+      admin.visibleFrom = new Date(from).toISOString();
+      admin.visibleUntil = new Date(until).toISOString();
+      options.window?.(
+        m[1]!,
+        String(admin.visibleFrom),
+        String(admin.visibleUntil)
+      );
+      return json(200, admin);
+    }
+
+    if ((m = route.match(/^POST \/announcements\/([^/]+)\/corrections$/))) {
+      const admin = known(m[1]!);
+      if (!admin) return notFound404();
+      if (admin.withdrawnAt) return withdrawn409(m[1]!);
       try {
         // As the service: a correction re-renders the announcement's own
         // template; only the variables of the request are read.

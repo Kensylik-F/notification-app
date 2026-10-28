@@ -32,6 +32,9 @@ export const AnnouncementAdminSchema = z.object({
   templateKey: z.string().nullish(),
   visibleFrom: z.iso.datetime({ offset: true }).nullish(),
   visibleUntil: z.iso.datetime({ offset: true }).nullish(),
+  withdrawalReason: z.string().nullish(),
+  withdrawnAt: z.iso.datetime({ offset: true }).nullish(),
+  withdrawnBy: z.string().nullish(),
 });
 export type AnnouncementAdmin = z.infer<typeof AnnouncementAdminSchema>;
 
@@ -220,6 +223,15 @@ export const BatchSendResponseSchema = z.object({
   results: z.array(BatchItemResultSchema).nullish(),
 });
 export type BatchSendResponse = z.infer<typeof BatchSendResponseSchema>;
+
+/** Replace an announcement's visibility window. The start can move only before the window opens; the end cannot be in the past. */
+export const ChangeAnnouncementWindowRequestSchema = z.object({
+  visibleFrom: z.iso.datetime({ offset: true }).optional(),
+  visibleUntil: z.iso.datetime({ offset: true }),
+});
+export type ChangeAnnouncementWindowRequest = z.infer<
+  typeof ChangeAnnouncementWindowRequestSchema
+>;
 
 export const DeliveryContentResponseSchema = z.object({
   deliveryId: z.uuid().nullish(),
@@ -438,3 +450,11 @@ export const SuppressionResponseSchema = z.object({
   reason: z.string().nullish(),
 });
 export type SuppressionResponse = z.infer<typeof SuppressionResponseSchema>;
+
+/** Withdraw a published announcement. The reason is optional. */
+export const WithdrawAnnouncementRequestSchema = z.object({
+  reason: z.string().max(500).optional(),
+});
+export type WithdrawAnnouncementRequest = z.infer<
+  typeof WithdrawAnnouncementRequestSchema
+>;
