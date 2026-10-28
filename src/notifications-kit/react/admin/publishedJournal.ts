@@ -97,3 +97,38 @@ export function subscribePublished(listener: () => void): () => void {
     window.removeEventListener('storage', onStorage);
   };
 }
+
+/** The window was changed: keep the dates of the record in step. */
+export function rememberWindow(
+  scope: string,
+  id: string,
+  window: { visibleFrom: string | null; visibleUntil: string }
+) {
+  const records = readPublished(scope);
+  if (!records.some(record => record.id === id)) return;
+  write(
+    scope,
+    records.map(record =>
+      record.id === id
+        ? {
+            ...record,
+            announcement: {
+              ...record.announcement,
+              ...(window.visibleFrom !== null
+                ? { visibleFrom: window.visibleFrom }
+                : {}),
+              visibleUntil: window.visibleUntil,
+            },
+            request: {
+              ...record.request,
+              ...(window.visibleFrom !== null
+                ? { visibleFrom: window.visibleFrom }
+                : {}),
+              visibleUntil: window.visibleUntil,
+            },
+            correctedAt: new Date().toISOString(),
+          }
+        : record
+    )
+  );
+}

@@ -289,6 +289,10 @@ export function createMockService(options: { latencyMs?: number } = {}) {
       const found = announcements.find(a => a.id === id);
       if (found) Object.assign(found, { subject, bodyText, bodyHtml });
     },
+    window: (id, visibleFrom, visibleUntil) => {
+      const found = announcements.find(a => a.id === id);
+      if (found) Object.assign(found, { visibleFrom, visibleUntil });
+    },
     lookup: id => {
       const found = announcements.find(a => a.id === id);
       return found

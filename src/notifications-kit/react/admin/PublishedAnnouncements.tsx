@@ -90,7 +90,9 @@ export function PublishedAnnouncements({
   const active = useAnnouncements();
   const closed = useDismissedAnnouncements();
   const [editing, setEditing] = useState<string | null>(editId ?? null);
-  const [saved, setSaved] = useState<string | null>(null);
+  const [saved, setSaved] = useState<{ id: string; removed: boolean } | null>(
+    null
+  );
 
   useEffect(() => {
     if (editId) setEditing(editId);
@@ -150,8 +152,11 @@ export function PublishedAnnouncements({
   return (
     <div className={cx(styles.root, styles.stack, styles.published)}>
       {saved && (
-        <Notice tone='success' title={t('edit.saved')}>
-          {list.find(r => r.id === saved)?.subject ?? null}
+        <Notice
+          tone='success'
+          title={saved.removed ? t('edit.removed') : t('edit.saved')}
+        >
+          {list.find(r => r.id === saved.id)?.subject ?? null}
         </Notice>
       )}
       {active.isPending && list.length === 0 ? (
@@ -229,8 +234,8 @@ export function PublishedAnnouncements({
             setEditing(null);
             onEditClose?.();
           }}
-          onSaved={() => {
-            setSaved(editing);
+          onSaved={result => {
+            setSaved({ id: editing, ...result });
             setEditing(null);
             onEditClose?.();
           }}
@@ -251,7 +256,7 @@ export function EditDialog({
   id: string;
   hint?: Partial<AnnouncementEntry>;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (result: { removed: boolean }) => void;
 }) {
   const { t } = useNotificationsContext();
   const titleId = useDomId('nk-edit');
@@ -272,7 +277,7 @@ export function EditDialog({
           <AnnouncementEditor
             target={target}
             onCancel={onClose}
-            onDone={onSaved}
+            onDone={(_, result) => onSaved(result)}
           />
         )}
       </div>
