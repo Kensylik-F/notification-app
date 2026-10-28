@@ -353,8 +353,6 @@ export function createAdminMock(options: {
     bodyText: string,
     bodyHtml: string | null
   ) => void;
-  /** A correction changed the display window. */
-  window?: (id: string, visibleFrom: string, visibleUntil: string) => void;
   /** An announcement the service already had (the demo's seed). */
   lookup?: (id: string) =>
     | {
@@ -868,17 +866,6 @@ export function createAdminMock(options: {
           );
         }
         throw error;
-      }
-      // The window of the correction body, as the service on the stand
-      // is said to apply it.
-      if (body.visibleUntil) {
-        if (body.visibleFrom) admin.visibleFrom = String(body.visibleFrom);
-        admin.visibleUntil = String(body.visibleUntil);
-        options.window?.(
-          m[1]!,
-          String(admin.visibleFrom),
-          String(admin.visibleUntil)
-        );
       }
       return json(200, admin);
     }
