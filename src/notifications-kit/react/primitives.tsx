@@ -520,6 +520,10 @@ function frameDocument(html: string, host: HTMLElement | null): string {
     '<!doctype html><html><head><meta charset="utf-8"><base target="_blank">' +
     `<style>:root{color-scheme:${scheme}}html,body{margin:0;padding:0;background:transparent;color:${color};` +
     `font-family:${font};font-size:${size};line-height:1.6;overflow-wrap:anywhere}` +
+    // The frame takes the height of its content, so it never scrolls: no
+    // scroll bar for a pixel or two of rounding. flow-root keeps the last
+    // child's margins (a list item's) inside the body that is measured.
+    'html{overflow:hidden}body{display:flow-root}' +
     'table{border-collapse:collapse;margin:0 0 12px}th,td{border:1px solid rgba(127,127,127,.35);padding:4px 10px;text-align:left;vertical-align:top}th{font-weight:600}' +
     'blockquote{margin:0 0 12px;padding-left:12px;border-left:3px solid rgba(127,127,127,.35)}pre{white-space:pre-wrap}' +
     'body>*:first-child{margin-top:0}body>*:last-child{margin-bottom:0}' +
@@ -564,6 +568,9 @@ export function HtmlFrame({
     // itself, so it could only ever grow.
     const height = Math.ceil(body.getBoundingClientRect().height);
     frame.style.height = `${Math.min(MAX_FRAME, Math.max(MIN_FRAME, height))}px`;
+    // Only content taller than the cap scrolls, inside the frame.
+    body.ownerDocument.documentElement.style.overflowY =
+      height > MAX_FRAME ? 'auto' : 'hidden';
   }, []);
 
   // Late layout changes - fonts, images, a narrower column - resize it too.
